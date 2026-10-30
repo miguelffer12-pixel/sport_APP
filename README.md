@@ -3,6 +3,7 @@
 App sencilla para iPhone para apuntar qué deporte haces cada día y ver en un calendario los días que has entrenado.
 
 - Panel con progreso semanal frente a tu objetivo, rachas, comparativa con el mes anterior, mapa de actividad de 20 semanas, minutos por semana y reparto por deporte.
+- Casillas diarias para los ejercicios de cuello y mandíbula, con los últimos 7 días a la vista.
 - Calendario mensual con un punto de color por deporte.
 - Botón + para registrar una sesión (deporte y duración) en cualquier día.
 - Deportes y objetivo semanal configurables desde Ajustes.

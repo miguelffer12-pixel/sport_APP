@@ -125,6 +125,19 @@
     .fact .v { font-size: 17px; font-weight: 600; margin-top: 6px; }
     .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
 
+    /* Ejercicios diarios */
+    .habit { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; text-align: left; font-size: 15px; }
+    .habit + .habit { border-top: 1px solid var(--line); }
+    .habit .grow { flex: 1; }
+    .check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 60%, transparent); display: grid; place-items: center;
+      color: var(--accent-ink); flex: 0 0 auto; transition: background .15s, border-color .15s; }
+    .check svg { width: 14px; height: 14px; opacity: 0; }
+    .habit.done .check { background: var(--accent); border-color: var(--accent); }
+    .habit.done .check svg { opacity: 1; }
+    .mini { display: flex; gap: 3px; }
+    .mini i { width: 8px; height: 8px; border-radius: 2px; background: var(--heat0); }
+    .mini i.on { background: var(--accent); }
+
     /* Calendario */
     .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .month-nav h2 { font-size: 17px; margin: 0; font-weight: 600; }
@@ -222,6 +235,11 @@
       <button id="backupNow">Copiar</button>
     </div>
     <section class="card">
+      <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Ejercicios de hoy</div><div class="meta" id="habitsMeta"></div></div>
+      <div id="habits"></div>
+    </section>
+
+    <section class="card">
       <div class="eyebrow">Esta semana</div>
       <div class="hero-row">
         <div class="big" id="wkCount">0<small>/4</small></div>
@@ -308,6 +326,8 @@
       </div>
     </div>
     <div id="logEntries"></div>
+    <div class="section-lbl">Ejercicios</div>
+    <div id="logHabits"></div>
     <div class="section-lbl">Deporte</div>
     <div class="pills" id="logSports"></div>
     <div class="section-lbl">Duración</div>
@@ -348,16 +368,18 @@ const KEY = 'mi-deporte-v1';
 const DEFAULT_SPORTS = ['Correr', 'Gimnasio', 'Ciclismo', 'Natación', 'Fútbol', 'Pádel']
   .map((name, i) => ({ id: 'd' + i, name, c: i + 1 }));
 const DUR = [15, 30, 45, 60, 90];
+const HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mandíbula' }];
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const DOW_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min }] }, goal }
+// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] } }
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!d || !d.sports || !d.days) d = { sports: DEFAULT_SPORTS, days: {} };
   d.goal = d.goal || 4;
+  d.checks = d.checks || {};
   d.sports.forEach(s => { if (s.c === undefined) s.c = freeSlot(d.sports); });
   return d;
 }
@@ -424,10 +446,35 @@ function level(k) {
   return m >= 90 ? 4 : m >= 60 ? 3 : m >= 30 ? 2 : 1;
 }
 
+// Ejercicios diarios (cuello, mandíbula): casillas por día
+const checked = (k, id) => (data.checks[k] || []).includes(id);
+function toggleCheck(k, id) {
+  const a = data.checks[k] || (data.checks[k] = []);
+  const i = a.indexOf(id);
+  if (i < 0) a.push(id); else a.splice(i, 1);
+  if (!a.length) delete data.checks[k];
+  save();
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+// mini = muestra los últimos 7 días a la derecha
+const habitRows = (k, mini) => HABITS.map(h => {
+  const last7 = mini ? `<span class="mini">${[6, 5, 4, 3, 2, 1, 0].map(i =>
+    `<i${checked(keyOf(addDays(parseKey(k), -i)), h.id) ? ' class="on"' : ''}></i>`).join('')}</span>` : '';
+  return `<button class="habit${checked(k, h.id) ? ' done' : ''}" data-habit="${h.id}"><span class="check">${CHECK_SVG}</span><span class="grow">${h.name}</span>${last7}</button>`;
+}).join('');
+function renderHabits(t) {
+  const k = keyOf(t), done = HABITS.filter(h => checked(k, h.id)).length;
+  $('habits').innerHTML = habitRows(k, true);
+  $('habitsMeta').textContent = done === HABITS.length ? 'Hechos' : `${done}/${HABITS.length}`;
+}
+
 // ---------- PANEL ----------
 function renderPanel() {
   const t = today();
   $('todayLbl').textContent = fmt(t, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  renderHabits(t);
 
   // Semana
   const ws = startOfWeek(t);
@@ -646,6 +693,7 @@ function renderLog() {
   $('dayNext').disabled = d >= t;
   const es = entriesOf(logDay);
   $('logEntries').innerHTML = es.length ? '<div class="section-lbl">Registrado</div>' + es.map((e, i) => sessRow(sportById(e.sport), e, i)).join('') : '';
+  $('logHabits').innerHTML = habitRows(logDay, false);
   $('logSports').innerHTML = data.sports.map(s =>
     `<button class="pill${pickSport === s.id ? ' on' : ''}" data-sport="${s.id}" style="--c:${color(s)}"><span class="pip"></span>${esc(s.name)}</button>`).join('');
   const custom = pickDur && !DUR.includes(pickDur) ? pickDur : '';
@@ -660,6 +708,14 @@ $('logDur').oninput = e => {
   const v = parseInt(e.target.value, 10);
   pickDur = v > 0 ? v : null;
   document.querySelectorAll('#logDur .pill').forEach(p => p.classList.remove('on'));
+};
+$('habits').onclick = e => {
+  const b = e.target.closest('[data-habit]'); if (!b) return;
+  toggleCheck(keyOf(today()), b.dataset.habit); renderHabits(today());
+};
+$('logHabits').onclick = e => {
+  const b = e.target.closest('[data-habit]'); if (!b) return;
+  toggleCheck(logDay, b.dataset.habit); renderLog();
 };
 $('logEntries').onclick = e => {
   const b = e.target.closest('[data-del]'); if (!b) return;
