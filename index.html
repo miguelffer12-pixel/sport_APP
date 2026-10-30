@@ -128,6 +128,7 @@
     /* Ejercicios diarios */
     .habit { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; text-align: left; font-size: 15px; }
     .habit + .habit { border-top: 1px solid var(--line); }
+    .habit.leaving { opacity: 0; transition: opacity .3s .25s; }
     .habit .grow { flex: 1; }
     .check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 60%, transparent); display: grid; place-items: center;
       color: var(--accent-ink); flex: 0 0 auto; transition: background .15s, border-color .15s; }
@@ -239,7 +240,7 @@
       <div class="grow">Haz una copia de tus datos<br><span id="backupAge"></span></div>
       <button id="backupNow">Copiar</button>
     </div>
-    <section class="card">
+    <section class="card" id="habitsCard">
       <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Ejercicios de hoy</div><div class="meta" id="habitsMeta"></div></div>
       <div id="habits"></div>
     </section>
@@ -467,15 +468,18 @@ function toggleCheck(k, id) {
 }
 const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 // mini = muestra los últimos 7 días a la derecha
-const habitRows = (k, mini) => HABITS.map(h => {
+const habitRows = (k, mini, list = HABITS) => list.map(h => {
   const last7 = mini ? `<span class="mini">${[6, 5, 4, 3, 2, 1, 0].map(i =>
     `<i${checked(keyOf(addDays(parseKey(k), -i)), h.id) ? ' class="on"' : ''}></i>`).join('')}</span>` : '';
   return `<button class="habit${checked(k, h.id) ? ' done' : ''}" data-habit="${h.id}"><span class="check">${CHECK_SVG}</span><span class="grow">${h.name}</span>${last7}</button>`;
 }).join('');
+// En el panel solo salen los ejercicios pendientes de hoy; al marcarlos se quitan hasta mañana
+// (para desmarcar, desde la hoja de registrar del día)
 function renderHabits(t) {
-  const k = keyOf(t), done = HABITS.filter(h => checked(k, h.id)).length;
-  $('habits').innerHTML = habitRows(k, true);
-  $('habitsMeta').textContent = done === HABITS.length ? 'Hechos' : `${done}/${HABITS.length}`;
+  const k = keyOf(t), pending = HABITS.filter(h => !checked(k, h.id));
+  $('habitsCard').classList.toggle('hidden', !pending.length);
+  $('habits').innerHTML = habitRows(k, true, pending);
+  $('habitsMeta').textContent = `${HABITS.length - pending.length}/${HABITS.length}`;
 }
 
 // ---------- PANEL ----------
@@ -720,7 +724,10 @@ $('logDur').oninput = e => {
 };
 $('habits').onclick = e => {
   const b = e.target.closest('[data-habit]'); if (!b) return;
-  toggleCheck(keyOf(today()), b.dataset.habit); renderHabits(today());
+  if (b.classList.contains('done')) return;
+  toggleCheck(keyOf(today()), b.dataset.habit);
+  b.classList.add('done', 'leaving');
+  setTimeout(() => renderHabits(today()), 600);
 };
 $('logHabits').onclick = e => {
   const b = e.target.closest('[data-habit]'); if (!b) return;
