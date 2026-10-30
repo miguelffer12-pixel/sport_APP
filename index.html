@@ -209,6 +209,11 @@
     .stepper button { width: 36px; height: 36px; border-radius: 50%; background: var(--raise); font-size: 20px; }
     .stepper b { font-size: 20px; min-width: 20px; text-align: center; }
     .set-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+    .switch { position: relative; width: 51px; height: 31px; border-radius: 99px; background: var(--raise); flex: 0 0 auto; transition: background .2s; }
+    .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,.2); transition: transform .2s; }
+    .switch.on { background: var(--accent); }
+    .switch.on::after { transform: translateX(20px); }
     .hint { font-size: 13px; color: var(--muted); line-height: 1.4; }
 
     #tip { position: fixed; z-index: 20; background: var(--text); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 8px;
@@ -357,6 +362,10 @@
       <button class="btn ghost" id="exportBtn" style="margin:0">Exportar</button>
       <button class="btn ghost" id="importBtn" style="margin:0">Importar</button>
     </div>
+    <div class="set-row" style="margin-top:12px">
+      <span>Avisarme si llevo 14 días sin copia</span>
+      <button class="switch" id="reminderSwitch" role="switch" aria-label="Aviso de copia"></button>
+    </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
     <button class="btn ghost" id="setClose">Cerrar</button>
   </div>
@@ -372,7 +381,7 @@ const HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mand
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const DOW_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] } }
+// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
   let d;
@@ -519,13 +528,13 @@ function renderPanel() {
   renderBackup(t);
 }
 
-// Aviso de copia de seguridad: aparece si hay datos y la última copia tiene más de 14 días
+// Aviso de copia de seguridad (solo si está activado en Ajustes): aparece si hay datos y la última copia tiene más de 14 días
 const daysSince = k => k ? Math.round((today() - parseKey(k)) / 864e5) : null;
 const ageText = n => n === null ? 'Nunca has hecho una copia' : n === 0 ? 'Última copia: hoy' : `Última copia: hace ${n} ${n === 1 ? 'día' : 'días'}`;
 function renderBackup() {
   const sessions = Object.values(data.days).reduce((a, es) => a + es.length, 0);
   const n = daysSince(data.lastBackup);
-  $('backupBanner').classList.toggle('hidden', sessions < 5 || (n !== null && n < 14));
+  $('backupBanner').classList.toggle('hidden', !data.backupReminder || sessions < 5 || (n !== null && n < 14));
   $('backupAge').textContent = ageText(n);
 }
 
@@ -738,6 +747,8 @@ $('addBtn').onclick = () => openLog(keyOf(today()));
 function renderSettings() {
   $('goalVal').textContent = data.goal;
   $('lastBackup').textContent = ageText(daysSince(data.lastBackup)) + '.';
+  $('reminderSwitch').classList.toggle('on', !!data.backupReminder);
+  $('reminderSwitch').setAttribute('aria-checked', !!data.backupReminder);
   $('sportList').innerHTML = data.sports.map(s =>
     `<div class="sess" style="--c:${color(s)}"><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
     `<button class="del" data-rm="${s.id}" aria-label="Borrar ${esc(s.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('');
@@ -780,6 +791,7 @@ function backedUp() {
   renderBackup(); renderSettings();
 }
 $('exportBtn').onclick = exportData;
+$('reminderSwitch').onclick = () => { data.backupReminder = !data.backupReminder; save(); renderSettings(); };
 $('backupNow').onclick = exportData;
 $('importBtn').onclick = () => $('importFile').click();
 $('importFile').onchange = async e => {

@@ -7,7 +7,7 @@ App sencilla para iPhone para apuntar qué deporte haces cada día y ver en un c
 - Calendario mensual con un punto de color por deporte.
 - Botón + para registrar una sesión (deporte y duración) en cualquier día.
 - Deportes y objetivo semanal configurables desde Ajustes.
-- Funciona sin conexión. Los datos se guardan en el propio iPhone; exporta/importa una copia desde Ajustes. La app te avisa si llevas más de 14 días sin hacer copia.
+- Funciona sin conexión. Los datos se guardan en el propio iPhone; exporta/importa una copia desde Ajustes. Si lo activas en Ajustes, la app te avisa cuando llevas más de 14 días sin hacer copia.
 
 ## Instalar en el iPhone
 
