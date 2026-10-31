@@ -186,9 +186,10 @@
     .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 10; }
     .backdrop.open { opacity: 1; pointer-events: auto; }
     .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; background: var(--card); border-radius: 22px 22px 0 0;
-      padding: 10px 16px calc(env(safe-area-inset-bottom) + 16px); max-height: 88vh; overflow-y: auto;
+      padding: 10px 16px calc(env(safe-area-inset-bottom) + 16px); max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
       transform: translateY(100%); visibility: hidden; transition: transform .28s cubic-bezier(.2,.8,.2,1), visibility .28s; }
     .sheet.open { transform: translateY(0); visibility: visible; }
+    .sheet.dragging, .backdrop.dragging { transition: none; }
     .grip { width: 36px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto 12px; }
     .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
     .sheet-head h3 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
@@ -773,6 +774,48 @@ function closeSheets() {
   render();
 }
 $('backdrop').onclick = closeSheets;
+
+// Deslizar hacia abajo para cerrar (si la hoja está arriba del todo, o desde la franja de arriba)
+function swipeToClose(sheet) {
+  let y0 = null, x0 = 0, dy = 0, lastY = 0, lastT = 0, speed = 0, dragging = false;
+  const bd = $('backdrop');
+  sheet.addEventListener('touchstart', e => {
+    // la franja de arriba (donde está la barrita) siempre arrastra, aunque la hoja tenga scroll
+    const fromTop = e.touches[0].clientY - sheet.getBoundingClientRect().top < 44;
+    y0 = sheet.scrollTop <= 0 || fromTop ? e.touches[0].clientY : null;
+    x0 = e.touches[0].clientX; dy = 0; speed = 0; dragging = false;
+    lastY = y0; lastT = e.timeStamp;
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (y0 === null) return;
+    const y = e.touches[0].clientY, ddy = y - y0, ddx = e.touches[0].clientX - x0;
+    if (!dragging) {
+      if (Math.abs(ddy) < 6 && Math.abs(ddx) < 6) return;
+      // hacia arriba o en horizontal: se deja el scroll normal
+      if (ddy <= 0 || Math.abs(ddx) > Math.abs(ddy)) { y0 = null; return; }
+      dragging = true;
+      sheet.classList.add('dragging'); bd.classList.add('dragging');
+      if (document.activeElement) document.activeElement.blur();
+    }
+    e.preventDefault();
+    dy = Math.max(0, y - y0);
+    if (e.timeStamp > lastT) speed = (y - lastY) / (e.timeStamp - lastT); // px/ms
+    lastY = y; lastT = e.timeStamp;
+    sheet.style.transform = `translateY(${dy}px)`;
+    bd.style.opacity = Math.max(0, 1 - dy / sheet.offsetHeight);
+  }, { passive: false });
+  const end = () => {
+    y0 = null;
+    if (!dragging) return;
+    dragging = false;
+    sheet.classList.remove('dragging'); bd.classList.remove('dragging');
+    sheet.style.transform = ''; bd.style.opacity = '';
+    if (dy > Math.min(140, sheet.offsetHeight / 4) || (speed > 0.4 && dy > 20)) closeSheets();
+  };
+  sheet.addEventListener('touchend', end);
+  sheet.addEventListener('touchcancel', end);
+}
+document.querySelectorAll('.sheet').forEach(swipeToClose);
 
 // Registrar
 let logDay = null, pickSport = null, pickDur = null;
