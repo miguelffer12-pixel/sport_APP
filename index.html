@@ -123,6 +123,12 @@
     .fact { padding: 2px 10px; border-left: 1px solid var(--line); }
     .fact:first-child { border-left: 0; padding-left: 0; }
     .fact .v { font-size: 17px; font-weight: 600; margin-top: 6px; }
+    .run-facts { margin-bottom: 20px; }
+    .run-facts .v { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+    .run-facts .v small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+    .field { flex: 1; position: relative; display: block; }
+    .field input { padding-right: 64px; }
+    .field span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
     .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
 
     /* Ejercicios diarios */
@@ -262,6 +268,19 @@
       <div class="kpi"><div class="eyebrow">Tiempo · mes</div><div class="v" id="kTime"></div><div class="d" id="kTimeD"></div></div>
     </div>
 
+    <section class="card" id="runCard">
+      <div class="card-head"><div class="eyebrow">Carrera</div><div class="meta" id="runMeta"></div></div>
+      <div class="facts run-facts">
+        <div class="fact"><div class="eyebrow">Semana</div><div class="v" id="runWeek"></div></div>
+        <div class="fact"><div class="eyebrow">Mes</div><div class="v" id="runMonth"></div></div>
+        <div class="fact"><div class="eyebrow">Ritmo · mes</div><div class="v" id="runPace"></div></div>
+      </div>
+      <div class="card-head" style="margin-bottom:10px"><div class="eyebrow">Km por semana</div><div class="meta" id="runBarsMeta"></div></div>
+      <div class="bars" id="runBars"></div>
+      <div class="bar-x" id="runBarsX"></div>
+      <div class="empty hidden" id="runEmpty">Apunta los km al registrar Correr</div>
+    </section>
+
     <section class="card">
       <div class="card-head"><div class="eyebrow">Actividad</div><div class="meta" id="heatMeta"></div></div>
       <div class="heat-wrap">
@@ -338,6 +357,14 @@
     <div class="pills" id="logSports"></div>
     <div class="section-lbl">Duración</div>
     <div class="pills" id="logDur"></div>
+    <div id="runFields" class="hidden">
+      <div class="section-lbl">Carrera</div>
+      <div class="row">
+        <label class="field"><input id="runKm" inputmode="decimal" placeholder="0,0" autocomplete="off"><span>km</span></label>
+        <label class="field"><input id="runPaceIn" inputmode="decimal" placeholder="5:30" autocomplete="off"><span>min/km</span></label>
+      </div>
+      <div class="hint" style="margin-top:8px">Si pones los km y la duración, el ritmo se calcula solo.</div>
+    </div>
     <button class="btn primary" id="logSave" disabled>Guardar sesión</button>
     <button class="btn ghost" id="logClose">Hecho</button>
   </div>
@@ -382,7 +409,8 @@ const HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mand
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const DOW_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
+// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace? }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
+// km = kilómetros, pace = ritmo en segundos por km (solo en Correr)
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
   let d;
@@ -420,6 +448,20 @@ const minutesOf = k => entriesOf(k).reduce((a, e) => a + (e.min || 0), 0);
 const sportById = id => data.sports.find(s => s.id === id) || { name: 'Eliminado', c: 0 };
 const color = s => `var(--c${s.c})`;
 const fmtTime = m => m < 60 ? `${m}<small>min</small>` : `${Math.floor(m / 60)}<small>h</small>${m % 60 ? ` ${m % 60}<small>m</small>` : ''}`;
+const fmtKm = n => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+const fmtPace = sec => { const r = Math.round(sec); return `${Math.floor(r / 60)}:${pad(r % 60)}`; };
+// Ritmo escrito como 5:30, 5,30 o 5.30 (min:seg por km); devuelve segundos, null si está vacío, NaN si no vale
+function parsePace(str) {
+  str = str.trim(); if (!str) return null;
+  const m = /^(\d{1,2})(?:[:.,'’](\d{1,2}))?$/.exec(str); if (!m) return NaN;
+  const sec = m[2] ? (m[2].length === 1 ? +m[2] * 10 : +m[2]) : 0;
+  return sec < 60 && (+m[1] || sec) ? +m[1] * 60 + sec : NaN;
+}
+function parseKm(str) {
+  str = str.trim(); if (!str) return null;
+  const v = Number(str.replace(',', '.'));
+  return v > 0 && v < 1000 ? Math.round(v * 100) / 100 : NaN;
+}
 const fmtTimePlain = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
 const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -527,6 +569,7 @@ function renderPanel() {
 
   renderHeat(t);
   renderBars(t);
+  renderRun(t);
   renderBySport(t);
   renderFacts();
   renderBackup(t);
@@ -564,7 +607,7 @@ function renderHeat(t) {
       if (l) activeDays++;
       const es = entriesOf(k);
       const tip = fmt(d, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' +
-        (es.length ? es.map(e => sportById(e.sport).name + (e.min ? ` ${e.min}′` : '')).join(', ') : 'Descanso');
+        (es.length ? es.map(e => sportById(e.sport).name + (e.min ? ` ${e.min}′` : '') + (e.km ? ` ${fmtKm(e.km)} km` : '')).join(', ') : 'Descanso');
       cells += `<i class="l${l}${k === keyOf(t) ? ' today' : ''}" data-tip="${esc(tip)}" data-day="${k}"></i>`;
     }
   }
@@ -573,17 +616,10 @@ function renderHeat(t) {
   $('heatMeta').textContent = `${activeDays} días activos`;
 }
 
-function renderBars(t) {
-  const N = 12, cur = startOfWeek(t);
-  const weeks = [];
-  for (let i = N - 1; i >= 0; i--) {
-    const s = addDays(cur, -i * 7);
-    weeks.push({ s, ...rangeStats(s, addDays(s, 6)) });
-  }
-  // Si nunca has puesto minutos, mostramos sesiones
-  const useMin = weeks.some(w => w.min > 0);
-  const val = w => useMin ? w.min : w.sessions;
-  $('barsTitle').textContent = useMin ? 'Minutos por semana' : 'Sesiones por semana';
+// Barras de las últimas semanas: la actual en verde fuerte, número en la actual y en la máxima,
+// línea discontinua con la media de las semanas anteriores con datos. Devuelve la media.
+function drawBars(id, weeks, val, label, tipOf) {
+  const N = weeks.length;
   const max = Math.max(1, ...weeks.map(val));
   const past = weeks.slice(0, -1).filter(w => val(w) > 0);
   const avg = past.length ? past.reduce((a, w) => a + val(w), 0) / past.length : 0;
@@ -591,15 +627,57 @@ function renderBars(t) {
   let html = weeks.map((w, i) => {
     const v = val(w), h = v / max * 100;
     const isCur = i === N - 1;
-    const label = (isCur || i === maxIdx) && v ? `<div class="val">${v}</div>` : '';
-    const tip = `Semana del ${fmt(w.s, { day: 'numeric', month: 'short' })} · ${w.sessions} ses. · ${fmtTimePlain(w.min)}`;
-    return `<div class="bar${isCur ? ' cur' : ''}" data-tip="${esc(tip)}">${label}<div class="fill" style="height:${h * 0.82}%"></div></div>`;
+    const lbl = (isCur || i === maxIdx) && v ? `<div class="val">${label(v)}</div>` : '';
+    return `<div class="bar${isCur ? ' cur' : ''}" data-tip="${esc(tipOf(w))}">${lbl}<div class="fill" style="height:${h * 0.82}%"></div></div>`;
   }).join('');
   if (avg) html += `<div class="avgline" style="bottom:${avg / max * 82}%"></div>`;
-  $('barsMeta').textContent = avg ? `media ${Math.round(avg)} · 12 semanas` : '12 semanas';
-  $('bars').innerHTML = html;
-  $('barsX').innerHTML = weeks.map((w, i) =>
+  $(id).innerHTML = html;
+  $(id + 'X').innerHTML = weeks.map((w, i) =>
     `<span>${i === N - 1 ? 'Esta' : i % 4 === 0 ? fmt(w.s, { day: 'numeric' }) + ' ' + monthShort(w.s) : ''}</span>`).join('');
+  return avg;
+}
+const lastWeeks = (t, N, stats) => {
+  const cur = startOfWeek(t), weeks = [];
+  for (let i = N - 1; i >= 0; i--) { const s = addDays(cur, -i * 7); weeks.push({ s, ...stats(s, addDays(s, 6)) }); }
+  return weeks;
+};
+const weekOf = w => `Semana del ${fmt(w.s, { day: 'numeric', month: 'short' })}`;
+
+function renderBars(t) {
+  const weeks = lastWeeks(t, 12, rangeStats);
+  // Si nunca has puesto minutos, mostramos sesiones
+  const useMin = weeks.some(w => w.min > 0);
+  $('barsTitle').textContent = useMin ? 'Minutos por semana' : 'Sesiones por semana';
+  const avg = drawBars('bars', weeks, w => useMin ? w.min : w.sessions, String,
+    w => `${weekOf(w)} · ${w.sessions} ses. · ${fmtTimePlain(w.min)}`);
+  $('barsMeta').textContent = avg ? `media ${Math.round(avg)} · 12 semanas` : '12 semanas';
+}
+
+// ---------- CARRERA ----------
+const isRun = s => !!s && s.name.trim().toLowerCase() === 'correr';
+function runStats(from, to) {
+  let n = 0, km = 0, pkm = 0, psec = 0;
+  for (let d = new Date(from); d <= to; d = addDays(d, 1))
+    entriesOf(keyOf(d)).forEach(e => {
+      if (!isRun(sportById(e.sport))) return;
+      n++; km += e.km || 0;
+      if (e.km && e.pace) { pkm += e.km; psec += e.km * e.pace; }
+    });
+  return { n, km, pace: pkm ? psec / pkm : null }; // ritmo medio ponderado por km
+}
+function renderRun(t) {
+  $('runCard').classList.toggle('hidden', !data.sports.some(isRun));
+  const wk = runStats(startOfWeek(t), t), mo = runStats(new Date(t.getFullYear(), t.getMonth(), 1), t);
+  $('runWeek').innerHTML = `${fmtKm(wk.km)}<small>km</small>`;
+  $('runMonth').innerHTML = `${fmtKm(mo.km)}<small>km</small>`;
+  $('runPace').innerHTML = mo.pace ? `${fmtPace(mo.pace)}<small>/km</small>` : '—';
+  $('runMeta').textContent = `${mo.n} ${mo.n === 1 ? 'carrera' : 'carreras'} este mes`;
+  const weeks = lastWeeks(t, 12, runStats), any = weeks.some(w => w.km > 0);
+  ['runBars', 'runBarsX'].forEach(id => $(id).classList.toggle('hidden', !any));
+  $('runEmpty').classList.toggle('hidden', any);
+  const avg = drawBars('runBars', weeks, w => w.km, fmtKm,
+    w => `${weekOf(w)} · ${w.n} ${w.n === 1 ? 'carrera' : 'carreras'} · ${fmtKm(w.km)} km${w.pace ? ` · ${fmtPace(w.pace)}/km` : ''}`);
+  $('runBarsMeta').textContent = avg ? `media ${fmtKm(avg)} km · 12 semanas` : '12 semanas';
 }
 
 function renderBySport(t) {
@@ -663,7 +741,7 @@ function renderCal() {
     : '<div class="empty">Sin sesiones este mes.</div>';
 }
 const sessRow = (s, e, del) => `<div class="sess" style="--c:${color(s)}"><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
-  `<span class="min">${e.min ? e.min + ' min' : ''}</span>${del !== undefined ? `<button class="del" data-del="${del}" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}</div>`;
+  `<span class="min">${[e.km && fmtKm(e.km) + ' km', e.pace && fmtPace(e.pace) + '/km', e.min && e.min + ' min'].filter(Boolean).join(' · ')}</span>${del !== undefined ? `<button class="del" data-del="${del}" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}</div>`;
 
 // ---------- NAVEGACIÓN ----------
 let curView = 'panel';
@@ -698,7 +776,8 @@ $('backdrop').onclick = closeSheets;
 
 // Registrar
 let logDay = null, pickSport = null, pickDur = null;
-function openLog(k) { logDay = k; pickSport = null; pickDur = null; renderLog(); openSheet('logSheet'); }
+function clearRunFields() { $('runKm').value = ''; $('runPaceIn').value = ''; }
+function openLog(k) { logDay = k; pickSport = null; pickDur = null; clearRunFields(); renderLog(); openSheet('logSheet'); }
 function renderLog() {
   const d = parseKey(logDay), t = today();
   $('logTitle').textContent = d.getTime() === t.getTime() ? 'Hoy' :
@@ -712,6 +791,7 @@ function renderLog() {
   const custom = pickDur && !DUR.includes(pickDur) ? pickDur : '';
   $('logDur').innerHTML = DUR.map(m => `<button class="pill${pickDur === m ? ' on' : ''}" data-dur="${m}">${m}′</button>`).join('') +
     `<input class="dur-custom${custom ? ' on' : ''}" id="durCustom" type="number" inputmode="numeric" min="1" placeholder="otro" value="${custom}">`;
+  $('runFields').classList.toggle('hidden', !isRun(data.sports.find(s => s.id === pickSport)));
   $('logSave').disabled = !pickSport;
 }
 $('logSports').onclick = e => { const b = e.target.closest('[data-sport]'); if (b) { pickSport = pickSport === b.dataset.sport ? null : b.dataset.sport; renderLog(); } };
@@ -740,10 +820,21 @@ $('logEntries').onclick = e => {
   save(); renderLog();
 };
 $('logSave').onclick = () => {
-  (data.days[logDay] || (data.days[logDay] = [])).push({ sport: pickSport, min: pickDur || null });
+  const entry = { sport: pickSport, min: pickDur || null };
+  if (isRun(sportById(pickSport))) {
+    const km = parseKm($('runKm').value);
+    let pace = parsePace($('runPaceIn').value);
+    if (Number.isNaN(km)) return alert('Km no válidos. Escribe por ejemplo 8,5');
+    if (Number.isNaN(pace)) return alert('Ritmo no válido. Escribe por ejemplo 5:30');
+    if (km && !pace && entry.min) pace = Math.round(entry.min * 60 / km);
+    if (km && pace && !entry.min) entry.min = Math.round(km * pace / 60);
+    if (km) entry.km = km;
+    if (pace) entry.pace = pace;
+  }
+  (data.days[logDay] || (data.days[logDay] = [])).push(entry);
   save();
   if (navigator.vibrate) navigator.vibrate(10);
-  pickSport = null; pickDur = null; renderLog();
+  pickSport = null; pickDur = null; clearRunFields(); renderLog();
 };
 $('dayPrev').onclick = () => { logDay = keyOf(addDays(parseKey(logDay), -1)); renderLog(); };
 $('dayNext').onclick = () => { logDay = keyOf(addDays(parseKey(logDay), 1)); renderLog(); };
@@ -829,7 +920,7 @@ function hideTip() { tip.classList.remove('show'); }
 document.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el && e.pointerType === 'mouse') showTip(el); });
 document.addEventListener('pointerout', e => { if (e.pointerType === 'mouse' && e.target.closest('[data-tip]')) hideTip(); });
 // En el móvil: tocar una barra o una celda del mapa muestra su detalle
-document.getElementById('bars').addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); });
+['bars', 'runBars'].forEach(id => $(id).addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); }));
 document.getElementById('heat').addEventListener('click', e => {
   const el = e.target.closest('[data-tip]'); if (!el) return;
   e.stopPropagation(); showTip(el);
