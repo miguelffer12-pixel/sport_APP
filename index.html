@@ -126,6 +126,9 @@
     .run-facts { margin-bottom: 20px; }
     .run-facts .v { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
     .run-facts .v small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+    .seg { display: flex; gap: 2px; padding: 3px; background: var(--raise); border-radius: 99px; }
+    .seg button { padding: 5px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--muted); }
+    .seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
     .field { flex: 1; position: relative; display: block; }
     .field input { padding-right: 64px; }
     .field span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
@@ -268,16 +271,16 @@
     </div>
 
     <section class="card" id="runCard">
-      <div class="card-head"><div class="eyebrow">Carrera</div><div class="meta" id="runMeta"></div></div>
+      <div class="card-head" style="align-items:center"><div id="distSeg"></div><div class="meta" id="runMeta"></div></div>
       <div class="facts run-facts">
         <div class="fact"><div class="eyebrow">Semana</div><div class="v" id="runWeek"></div></div>
         <div class="fact"><div class="eyebrow">Mes</div><div class="v" id="runMonth"></div></div>
-        <div class="fact"><div class="eyebrow">Ritmo · mes</div><div class="v" id="runPace"></div></div>
+        <div class="fact"><div class="eyebrow" id="runThird">Ritmo · mes</div><div class="v" id="runPace"></div></div>
       </div>
       <div class="card-head" style="margin-bottom:10px"><div class="eyebrow">Km por semana</div><div class="meta" id="runBarsMeta"></div></div>
       <div class="bars" id="runBars"></div>
       <div class="bar-x" id="runBarsX"></div>
-      <div class="empty hidden" id="runEmpty">Apunta los km al registrar Correr</div>
+      <div class="empty hidden" id="runEmpty"></div>
     </section>
 
     <section class="card">
@@ -362,12 +365,12 @@
     <div class="section-lbl">Duración</div>
     <div class="pills" id="logDur"></div>
     <div id="runFields" class="hidden">
-      <div class="section-lbl">Carrera</div>
+      <div class="section-lbl" id="distLbl">Distancia</div>
       <div class="row">
         <label class="field"><input id="runKm" inputmode="decimal" placeholder="0,0" autocomplete="off"><span>km</span></label>
-        <label class="field"><input id="runPaceIn" inputmode="decimal" placeholder="5:30" autocomplete="off"><span>min/km</span></label>
+        <label class="field"><input id="runPaceIn" inputmode="decimal" autocomplete="off"><span id="secUnit"></span></label>
       </div>
-      <div class="hint" style="margin-top:8px">Si pones los km y la duración, el ritmo se calcula solo.</div>
+      <div class="hint" style="margin-top:8px" id="distHint"></div>
     </div>
     <button class="btn primary" id="logSave" disabled>Guardar sesión</button>
     <button class="btn ghost" id="logClose">Hecho</button>
@@ -414,7 +417,7 @@ const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const DOW_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 // Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace? }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
-// km = kilómetros, pace = ritmo en segundos por km (solo en Correr)
+// km = kilómetros; pace = ritmo en segundos por km (Correr); speed = velocidad media en km/h (Ciclismo)
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
   let d;
@@ -657,32 +660,68 @@ function renderBars(t) {
   $('barsMeta').textContent = avg ? `media ${Math.round(avg)} · 12 semanas` : '12 semanas';
 }
 
-// ---------- CARRERA ----------
-const isRun = s => !!s && s.name.trim().toLowerCase() === 'correr';
-function runStats(from, to) {
-  let n = 0, km = 0, pkm = 0, psec = 0;
+// ---------- DISTANCIA (correr y bici, siempre por separado) ----------
+// Correr guarda el ritmo (pace, s/km); la bici la velocidad media (speed, km/h)
+const KINDS = {
+  run: { names: ['correr'], word: n => n === 1 ? 'carrera' : 'carreras', third: 'Ritmo · mes',
+    unit: 'min/km', ph: '5:30', hint: 'Si pones los km y la duración, el ritmo se calcula solo.' },
+  bike: { names: ['ciclismo', 'bici', 'bicicleta'], word: n => n === 1 ? 'salida' : 'salidas', third: 'Vel. · mes',
+    unit: 'km/h', ph: '25', hint: 'Si pones los km y la duración, la velocidad se calcula sola.' },
+};
+const kindOf = s => s ? Object.keys(KINDS).find(k => KINDS[k].names.includes(s.name.trim().toLowerCase())) : undefined;
+const kindSport = k => data.sports.find(s => kindOf(s) === k);
+const fmtAvg = (k, w) => k === 'run' ? (w.pace ? `${fmtPace(w.pace)}/km` : '') : (w.speed ? `${fmtKm(w.speed)} km/h` : '');
+const distStats = k => (from, to) => {
+  let n = 0, km = 0, pkm = 0, psec = 0, skm = 0, sh = 0;
   for (let d = new Date(from); d <= to; d = addDays(d, 1))
     entriesOf(keyOf(d)).forEach(e => {
-      if (!isRun(sportById(e.sport))) return;
+      if (kindOf(sportById(e.sport)) !== k) return;
       n++; km += e.km || 0;
       if (e.km && e.pace) { pkm += e.km; psec += e.km * e.pace; }
+      if (e.km && e.speed) { skm += e.km; sh += e.km / e.speed; }
     });
-  return { n, km, pace: pkm ? psec / pkm : null }; // ritmo medio ponderado por km
+  // medias ponderadas por km
+  return { n, km, pace: pkm ? psec / pkm : null, speed: sh ? skm / sh : null };
+};
+// Pestaña por defecto: la del último día con km
+function defaultKind(kinds) {
+  const keys = Object.keys(data.days).sort().reverse();
+  for (const k of keys) for (const e of data.days[k]) {
+    const kd = kindOf(sportById(e.sport));
+    if (e.km && kinds.includes(kd)) return kd;
+  }
+  return kinds[0];
 }
+let distView = null;
 function renderRun(t) {
-  $('runCard').classList.toggle('hidden', !data.sports.some(isRun));
-  const wk = runStats(startOfWeek(t), t), mo = runStats(new Date(t.getFullYear(), t.getMonth(), 1), t);
+  const kinds = Object.keys(KINDS).filter(kindSport);
+  $('runCard').classList.toggle('hidden', !kinds.length);
+  if (!kinds.length) return;
+  if (!kinds.includes(distView)) distView = defaultKind(kinds);
+  const k = distView, K = KINDS[k], name = kindSport(k).name, stats = distStats(k);
+  $('distSeg').innerHTML = kinds.length > 1
+    ? `<div class="seg">${kinds.map(x => `<button data-kind="${x}"${x === k ? ' class="on"' : ''}>${esc(kindSport(x).name)}</button>`).join('')}</div>`
+    : `<div class="eyebrow">${esc(name)}</div>`;
+  const wk = stats(startOfWeek(t), t), mo = stats(new Date(t.getFullYear(), t.getMonth(), 1), t);
   $('runWeek').innerHTML = `${fmtKm(wk.km)}<small>km</small>`;
   $('runMonth').innerHTML = `${fmtKm(mo.km)}<small>km</small>`;
-  $('runPace').innerHTML = mo.pace ? `${fmtPace(mo.pace)}<small>/km</small>` : '—';
-  $('runMeta').textContent = `${mo.n} ${mo.n === 1 ? 'carrera' : 'carreras'} este mes`;
-  const weeks = lastWeeks(t, 12, runStats), any = weeks.some(w => w.km > 0);
+  $('runThird').textContent = K.third;
+  $('runPace').innerHTML = k === 'run'
+    ? (mo.pace ? `${fmtPace(mo.pace)}<small>/km</small>` : '—')
+    : (mo.speed ? `${fmtKm(mo.speed)}<small>km/h</small>` : '—');
+  $('runMeta').textContent = `${mo.n} ${K.word(mo.n)} este mes`;
+  const weeks = lastWeeks(t, 12, stats), any = weeks.some(w => w.km > 0);
   ['runBars', 'runBarsX'].forEach(id => $(id).classList.toggle('hidden', !any));
   $('runEmpty').classList.toggle('hidden', any);
+  $('runEmpty').textContent = `Apunta los km al registrar ${name}`;
   const avg = drawBars('runBars', weeks, w => w.km, fmtKm,
-    w => `${weekOf(w)} · ${w.n} ${w.n === 1 ? 'carrera' : 'carreras'} · ${fmtKm(w.km)} km${w.pace ? ` · ${fmtPace(w.pace)}/km` : ''}`);
+    w => `${weekOf(w)} · ${w.n} ${K.word(w.n)} · ${fmtKm(w.km)} km${fmtAvg(k, w) ? ` · ${fmtAvg(k, w)}` : ''}`);
   $('runBarsMeta').textContent = avg ? `media ${fmtKm(avg)} km · 12 semanas` : '12 semanas';
 }
+$('distSeg').onclick = e => {
+  const b = e.target.closest('[data-kind]'); if (!b) return;
+  distView = b.dataset.kind; renderRun(today());
+};
 
 function renderBySport(t) {
   const from = addDays(t, -89), by = {};
@@ -745,7 +784,7 @@ function renderCal() {
     : '<div class="empty">Sin sesiones este mes.</div>';
 }
 const sessRow = (s, e, del) => `<div class="sess" style="--c:${color(s)}"><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
-  `<span class="min">${[e.km && fmtKm(e.km) + ' km', e.pace && fmtPace(e.pace) + '/km', e.min && e.min + ' min'].filter(Boolean).join(' · ')}</span>${del !== undefined ? `<button class="del" data-del="${del}" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}</div>`;
+  `<span class="min">${[e.km && fmtKm(e.km) + ' km', e.pace && fmtPace(e.pace) + '/km', e.speed && fmtKm(e.speed) + ' km/h', e.min && e.min + ' min'].filter(Boolean).join(' · ')}</span>${del !== undefined ? `<button class="del" data-del="${del}" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}</div>`;
 
 // ---------- NAVEGACIÓN ----------
 let curView = 'panel';
@@ -837,7 +876,15 @@ function renderLog() {
   const custom = pickDur && !DUR.includes(pickDur) ? pickDur : '';
   $('logDur').innerHTML = DUR.map(m => `<button class="pill${pickDur === m ? ' on' : ''}" data-dur="${m}">${m}′</button>`).join('') +
     `<input class="dur-custom${custom ? ' on' : ''}" id="durCustom" type="number" inputmode="numeric" min="1" placeholder="otro" value="${custom}">`;
-  $('runFields').classList.toggle('hidden', !isRun(data.sports.find(s => s.id === pickSport)));
+  const kind = kindOf(data.sports.find(s => s.id === pickSport));
+  $('runFields').classList.toggle('hidden', !kind);
+  if (kind && kind !== $('runFields').dataset.kind) { // al cambiar de deporte, el 2º campo cambia de significado
+    const K = KINDS[kind];
+    $('runFields').dataset.kind = kind;
+    $('distLbl').textContent = data.sports.find(s => s.id === pickSport).name;
+    $('runPaceIn').value = ''; $('runPaceIn').placeholder = K.ph;
+    $('secUnit').textContent = K.unit; $('distHint').textContent = K.hint;
+  }
   $('logSave').disabled = !pickSport;
 }
 $('logSports').onclick = e => { const b = e.target.closest('[data-sport]'); if (b) { pickSport = pickSport === b.dataset.sport ? null : b.dataset.sport; renderLog(); } };
@@ -867,15 +914,24 @@ $('logEntries').onclick = e => {
 };
 $('logSave').onclick = () => {
   const entry = { sport: pickSport, min: pickDur || null };
-  if (isRun(sportById(pickSport))) {
+  const kind = kindOf(sportById(pickSport));
+  if (kind) {
     const km = parseKm($('runKm').value);
-    let pace = parsePace($('runPaceIn').value);
     if (Number.isNaN(km)) return alert('Km no válidos. Escribe por ejemplo 8,5');
-    if (Number.isNaN(pace)) return alert('Ritmo no válido. Escribe por ejemplo 5:30');
-    if (km && !pace && entry.min) pace = Math.round(entry.min * 60 / km);
-    if (km && pace && !entry.min) entry.min = Math.round(km * pace / 60);
-    if (km) entry.km = km;
-    if (pace) entry.pace = pace;
+    if (kind === 'run') {
+      let pace = parsePace($('runPaceIn').value);
+      if (Number.isNaN(pace)) return alert('Ritmo no válido. Escribe por ejemplo 5:30');
+      if (km && !pace && entry.min) pace = Math.round(entry.min * 60 / km);
+      if (km && pace && !entry.min) entry.min = Math.round(km * pace / 60);
+      if (pace) entry.pace = pace;
+    } else {
+      let speed = parseKm($('runPaceIn').value);
+      if (Number.isNaN(speed) || speed > 120) return alert('Velocidad no válida. Escribe por ejemplo 25,5');
+      if (km && !speed && entry.min) speed = Math.round(km / entry.min * 600) / 10;
+      if (km && speed && !entry.min) entry.min = Math.round(km / speed * 60);
+      if (speed) entry.speed = speed;
+    }
+    if (km) { entry.km = km; distView = kind; } // el panel enseña lo último que has apuntado
   }
   (data.days[logDay] || (data.days[logDay] = [])).push(entry);
   save();
