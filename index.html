@@ -189,8 +189,8 @@
     .sess .del svg { width: 16px; height: 16px; }
 
     /* Barra inferior */
-    nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: grid; grid-template-columns: 1fr auto 1fr;
-      align-items: center; padding: 8px 24px calc(env(safe-area-inset-bottom) + 8px);
+    nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: grid; grid-template-columns: 1fr 1fr auto 1fr 1fr;
+      align-items: center; padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px);
       background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
       border-top: 1px solid var(--line); }
     .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); font-weight: 600; padding: 4px 0; }
@@ -222,9 +222,28 @@
       border: 1.5px solid transparent; }
     .pill.on { border-color: var(--text); background: var(--card); }
     .pill .pip { width: 8px; height: 8px; }
-    input { font: inherit; color: inherit; background: var(--raise); border: 1.5px solid transparent; border-radius: 12px;
+    input, textarea { font: inherit; color: inherit; background: var(--raise); border: 1.5px solid transparent; border-radius: 12px;
       padding: 10px 12px; width: 100%; font-size: 16px; outline: none; }
-    input:focus { border-color: var(--muted); }
+    input:focus, textarea:focus { border-color: var(--muted); }
+    textarea { resize: none; min-height: 72px; line-height: 1.4; display: block; }
+
+    /* Comida */
+    .food-day { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+    .food-day::first-letter { text-transform: uppercase; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chips:empty { display: none; }
+    .chip { padding: 6px 11px; border-radius: 99px; background: var(--raise); font-size: 13px; color: var(--text2); }
+    .chip::before { content: '+ '; color: var(--muted); }
+    .food-row { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 10px 0; }
+    .food-row + .food-row { border-top: 1px solid var(--line); }
+    .food-row .fd { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; line-height: 1.3; }
+    .food-row .fd b { display: block; font-size: 17px; color: var(--text); letter-spacing: 0; }
+    .food-row .ft { font-size: 13px; color: var(--text2); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .food-row .ft b { color: var(--text); font-weight: 600; }
+    .food-row.sel .fd b { color: var(--accent); }
+    .badges { display: flex; gap: 4px; }
+    .badge { width: 22px; height: 22px; border-radius: 50%; font-size: 10px; font-weight: 700; display: grid; place-items: center; background: var(--raise); color: var(--muted); }
+    .badge.on { background: var(--accent); color: var(--accent-ink); }
     .dur-custom { width: 96px; padding: 8px 12px; border-radius: 99px; text-align: center; }
     .row { display: flex; gap: 8px; align-items: center; }
     .btn { width: 100%; padding: 14px; border-radius: 14px; font-weight: 600; font-size: 16px; margin-top: 18px; }
@@ -253,9 +272,6 @@
       <div class="date" id="todayLbl"></div>
       <h1 id="title">Resumen</h1>
     </div>
-    <button class="icon-btn" id="settingsBtn" aria-label="Ajustes">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-    </button>
   </header>
 
   <!-- PANEL -->
@@ -345,15 +361,47 @@
     <section class="card" id="monthList"></section>
   </main>
 
+  <!-- COMIDA -->
+  <main id="viewFood" class="hidden">
+    <section class="card">
+      <div class="card-head nav-head" style="margin-bottom:0"><h2 class="food-day" id="foodTitle"></h2>
+        <div class="daynav"><button id="foodPrev" aria-label="Día anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="foodNext" aria-label="Día siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+    </section>
+    <section class="card">
+      <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Suplementos</div><div class="meta" id="suppMeta"></div></div>
+      <div id="supps"></div>
+    </section>
+    <section class="card">
+      <div class="eyebrow" style="margin-bottom:10px">Comida</div>
+      <textarea id="meal-comida" data-meal="comida" rows="2" placeholder="Platos, separados por comas" autocomplete="off"></textarea>
+      <div class="chips" id="chips-comida" data-meal="comida"></div>
+    </section>
+    <section class="card">
+      <div class="eyebrow" style="margin-bottom:10px">Cena</div>
+      <textarea id="meal-cena" data-meal="cena" rows="2" placeholder="Platos, separados por comas" autocomplete="off"></textarea>
+      <div class="chips" id="chips-cena" data-meal="cena"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><div class="eyebrow">Últimos 14 días</div><div class="meta" id="foodMeta"></div></div>
+      <div id="foodList"></div>
+    </section>
+  </main>
+
   <nav class="tabs">
     <button class="tab active" data-view="panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Panel
     </button>
+    <button class="tab" data-view="cal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendario
+    </button>
     <button class="add" id="addBtn" aria-label="Registrar sesión">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <button class="tab" data-view="cal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendario
+    <button class="tab" data-view="food">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.2 1.2-3.5 4-3.5 7.5V14H17"/></svg>Comida
+    </button>
+    <button class="tab" id="settingsBtn" aria-label="Ajustes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Ajustes
     </button>
   </nav>
 
@@ -423,6 +471,7 @@ const HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mand
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 // Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace?, speed? }] }, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
+// food: { 'YYYY-MM-DD': { comida, cena, batido, creatina } } (platos en texto libre; batido/creatina = tomado)
 // km = kilómetros; pace = ritmo en segundos por km (Correr); speed = velocidad media en km/h (Ciclismo)
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
@@ -430,6 +479,7 @@ function load() {
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!d || !d.sports || !d.days) d = { sports: DEFAULT_SPORTS, days: {} };
   d.checks = d.checks || {};
+  d.food = d.food || {};
   d.sports.forEach(s => { if (s.c === undefined) s.c = freeSlot(d.sports); });
   return d;
 }
@@ -838,16 +888,19 @@ const sessRow = (s, e, del) => `<div class="sess" style="--c:${color(s)}"><span 
 
 // ---------- NAVEGACIÓN ----------
 let curView = 'panel';
+const TITLES = { panel: 'Resumen', cal: 'Calendario', food: 'Comida' };
 function render() {
-  if (curView === 'panel') renderPanel(); else renderCal();
+  if (curView === 'panel') renderPanel(); else if (curView === 'cal') renderCal(); else renderFood();
   $('todayLbl').textContent = fmt(today(), { weekday: 'long', day: 'numeric', month: 'long' });
 }
-document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+document.querySelectorAll('.tab[data-view]').forEach(b => b.onclick = () => {
   curView = b.dataset.view;
-  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.tab[data-view]').forEach(x => x.classList.toggle('active', x === b));
   $('viewPanel').classList.toggle('hidden', curView !== 'panel');
   $('viewCal').classList.toggle('hidden', curView !== 'cal');
-  $('title').textContent = curView === 'panel' ? 'Resumen' : 'Calendario';
+  $('viewFood').classList.toggle('hidden', curView !== 'food');
+  $('title').textContent = TITLES[curView];
+  if (curView === 'food') foodDay = keyOf(today());
   window.scrollTo(0, 0);
   render();
 });
@@ -857,6 +910,91 @@ document.addEventListener('click', e => {
   const d = e.target.closest('[data-day]');
   if (d && !d.disabled && !e.target.closest('.sheet')) openLog(d.dataset.day);
 });
+
+// ---------- COMIDA ----------
+const SUPPS = [{ id: 'batido', name: 'Batido de proteína', short: 'P' }, { id: 'creatina', name: 'Creatina', short: 'C' }];
+let foodDay = null;
+const foodOf = k => data.food[k] || {};
+function setFood(k, field, value) {
+  const f = data.food[k] || (data.food[k] = {});
+  if (value) f[field] = value; else delete f[field];
+  if (!Object.keys(f).length) delete data.food[k];
+  save();
+}
+// Platos de una comida, separados por comas o saltos de línea
+const dishesOf = text => (text || '').split(/[,\n]+/).map(x => x.trim()).filter(Boolean);
+// Atajos: los platos más repetidos de los últimos 60 días que aún no están puestos hoy
+function topDishes(meal, k) {
+  const count = {}, shown = {}, t = parseKey(k);
+  for (let i = 1; i <= 60; i++)
+    dishesOf(foodOf(keyOf(addDays(t, -i)))[meal]).forEach(x => {
+      const n = x.toLowerCase(); count[n] = (count[n] || 0) + 1; shown[n] = shown[n] || x;
+    });
+  const now = new Set(dishesOf(foodOf(k)[meal]).map(x => x.toLowerCase()));
+  return Object.keys(count).filter(n => !now.has(n)).sort((a, b) => count[b] - count[a]).slice(0, 8).map(n => shown[n]);
+}
+function renderChips(meal) {
+  $('chips-' + meal).innerHTML = topDishes(meal, foodDay).map(x => `<button class="chip" data-dish="${esc(x)}">${esc(x)}</button>`).join('');
+}
+function renderSupps() {
+  const f = foodOf(foodDay), t = parseKey(foodDay);
+  $('supps').innerHTML = SUPPS.map(x => {
+    const last7 = [6, 5, 4, 3, 2, 1, 0].map(i => `<i${foodOf(keyOf(addDays(t, -i)))[x.id] ? ' class="on"' : ''}></i>`).join('');
+    return `<button class="habit${f[x.id] ? ' done' : ''}" data-supp="${x.id}"><span class="check">${CHECK_SVG}</span><span class="grow">${x.name}</span><span class="mini">${last7}</span></button>`;
+  }).join('');
+  $('suppMeta').textContent = `${SUPPS.filter(x => f[x.id]).length}/${SUPPS.length}`;
+}
+function renderFood() {
+  const t = today(), d = parseKey(foodDay);
+  $('foodTitle').textContent = d.getTime() === t.getTime() ? 'Hoy' :
+    d.getTime() === addDays(t, -1).getTime() ? 'Ayer' : fmt(d, { weekday: 'long', day: 'numeric', month: 'short' });
+  $('foodNext').disabled = d >= t;
+  renderSupps();
+  ['comida', 'cena'].forEach(m => { $('meal-' + m).value = foodOf(foodDay)[m] || ''; renderChips(m); });
+  renderFoodList(t);
+}
+function renderFoodList(t) {
+  const rows = [], took = { batido: 0, creatina: 0 };
+  for (let i = 0; i < 14; i++) {
+    const d = addDays(t, -i), k = keyOf(d), f = foodOf(k);
+    SUPPS.forEach(x => { if (f[x.id]) took[x.id]++; });
+    const txt = [f.comida && `<b>Comida:</b> ${esc(f.comida)}`, f.cena && `<b>Cena:</b> ${esc(f.cena)}`].filter(Boolean).join(' · ') || '—';
+    rows.push(`<button class="food-row${k === foodDay ? ' sel' : ''}" data-food-day="${k}">
+      <span class="fd">${fmt(d, { weekday: 'short' }).replace('.', '')}<b>${d.getDate()}</b></span>
+      <span class="ft">${txt}</span>
+      <span class="badges">${SUPPS.map(x => `<span class="badge${f[x.id] ? ' on' : ''}">${x.short}</span>`).join('')}</span></button>`);
+  }
+  $('foodList').innerHTML = rows.join('');
+  $('foodMeta').textContent = `P batido ${took.batido}/14 · C creatina ${took.creatina}/14`;
+}
+$('supps').onclick = e => {
+  const b = e.target.closest('[data-supp]'); if (!b) return;
+  setFood(foodDay, b.dataset.supp, !foodOf(foodDay)[b.dataset.supp]);
+  if (navigator.vibrate) navigator.vibrate(10);
+  renderSupps(); renderFoodList(today());
+};
+['comida', 'cena'].forEach(m => {
+  // se guarda al escribir (sin redibujar nada al salir del campo, que haría perder el toque en un atajo)
+  $('meal-' + m).oninput = e => {
+    setFood(foodDay, m, e.target.value.trim() ? e.target.value : '');
+    renderChips(m); renderFoodList(today());
+  };
+  // tocar un atajo no quita el foco del campo (el teclado sigue abierto)
+  $('chips-' + m).onmousedown = e => e.preventDefault();
+  $('chips-' + m).onclick = e => {
+    const b = e.target.closest('[data-dish]'); if (!b) return;
+    const ta = $('meal-' + m), v = ta.value.replace(/[,\s]+$/, '');
+    ta.value = v ? `${v}, ${b.dataset.dish}` : b.dataset.dish;
+    setFood(foodDay, m, ta.value);
+    renderChips(m); renderFoodList(today());
+  };
+});
+$('foodList').onclick = e => {
+  const b = e.target.closest('[data-food-day]'); if (!b) return;
+  foodDay = b.dataset.foodDay; renderFood(); window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+$('foodPrev').onclick = () => { foodDay = keyOf(addDays(parseKey(foodDay), -1)); renderFood(); };
+$('foodNext').onclick = () => { foodDay = keyOf(addDays(parseKey(foodDay), 1)); renderFood(); };
 
 // ---------- HOJAS ----------
 function openSheet(id) { hideTip(); $('backdrop').classList.add('open'); $(id).classList.add('open'); }
@@ -1025,7 +1163,14 @@ $('addSport').onclick = () => {
 };
 $('newName').onkeydown = e => { if (e.key === 'Enter') $('addSport').click(); };
 async function exportData() {
-  const file = new File([JSON.stringify(data, null, 2)], `mi-deporte-${keyOf(today())}.json`, { type: 'application/json' });
+  // la leyenda explica cada campo para quien analice el archivo (por ejemplo, Claude)
+  const out = { leyenda: {
+    sports: 'Deportes: id, nombre y color (c).',
+    days: 'Sesiones por fecha (YYYY-MM-DD): sport = id del deporte, min = minutos (null si no se apuntó), km = kilómetros, pace = ritmo en segundos por km (correr), speed = velocidad media en km/h (bici).',
+    checks: 'Ejercicios diarios hechos por fecha: cuello, mandibula.',
+    food: 'Comida por fecha: comida y cena = platos en texto libre (separados por comas); batido = batido de proteína tomado; creatina = creatina tomada. El desayuno no se apunta.',
+  }, ...data };
+  const file = new File([JSON.stringify(out, null, 2)], `mi-deporte-${keyOf(today())}.json`, { type: 'application/json' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file] }); return backedUp(); } catch (e) { if (e.name === 'AbortError') return; }
   }
@@ -1047,6 +1192,7 @@ $('importFile').onchange = async e => {
     const d = JSON.parse(await f.text());
     if (!d.sports || !d.days) throw 0;
     if (confirm('Esto reemplazará tus datos actuales. ¿Continuar?')) {
+      delete d.leyenda;
       localStorage.setItem(KEY, JSON.stringify(d));
       data = load(); save(); renderSettings();
     }
