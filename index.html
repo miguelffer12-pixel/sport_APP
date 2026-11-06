@@ -60,16 +60,24 @@
     .hero-row { display: flex; align-items: baseline; justify-content: space-between; margin: 6px 0 14px; }
     .big { font-size: 44px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
     .big small { font-size: 22px; color: var(--muted); font-weight: 600; margin-left: 2px; }
-    .hero-sub { text-align: right; font-size: 13px; color: var(--text2); line-height: 1.5; }
-    .hero-sub b { color: var(--text); font-size: 15px; }
-    .progress { height: 6px; background: var(--raise); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
-    .progress > div { height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+    .nav-head { align-items: center; margin-bottom: 8px; }
+    .nav-head .daynav button { width: 30px; height: 30px; }
+    .nav-head .daynav svg { width: 14px; height: 14px; }
     .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
     .week .lbl { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
     .week .dot { height: 34px; border-radius: 10px; background: var(--raise); display: flex; align-items: center; justify-content: center; gap: 3px; }
     .week .dot.on { background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
     .week .dot.today { outline: 1.5px solid var(--text2); outline-offset: -1.5px; }
     .week .dot.future { opacity: .45; }
+    .week .wmin { font-size: 11px; color: var(--text2); margin-top: 5px; height: 13px; font-weight: 600; }
+    .week button:disabled { cursor: default; }
+    /* Días del mes */
+    .mdays { display: flex; align-items: flex-end; gap: 2px; height: 52px; border-bottom: 1px solid var(--line); }
+    .mdays span { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+    .mdays i { width: 100%; background: color-mix(in srgb, var(--accent) 50%, var(--raise)); border-radius: 2px 2px 0 0; }
+    .mdays i.zero { height: 3px; background: var(--raise); }
+    .mdays i.today { background: var(--accent); }
+    .mdays-x { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 6px; }
     .pip { width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--c0)); }
 
     /* KPIs */
@@ -99,6 +107,12 @@
     .bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
     .bar .fill { width: 70%; max-width: 18px; background: color-mix(in srgb, var(--accent) 45%, var(--raise)); border-radius: 4px 4px 0 0; min-height: 0; }
     .bar.cur .fill { background: var(--accent); }
+    /* Barras apiladas por deporte (colores de cada deporte) */
+    .bar .fill.stack { display: flex; flex-direction: column-reverse; gap: 1px; background: none; overflow: hidden; }
+    .bar:not(.cur) .fill.stack { opacity: .55; }
+    .fill.stack i { display: block; min-height: 2px; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 12px; color: var(--text2); }
+    .chart-legend span { display: flex; align-items: center; gap: 6px; }
     .bar .val { font-size: 11px; color: var(--text2); margin-bottom: 4px; font-weight: 600; }
     .bar-x { display: flex; gap: 2px; margin-top: 6px; font-size: 10px; color: var(--muted); }
     .bar-x span { flex: 1; text-align: center; white-space: nowrap; overflow: visible; }
@@ -126,6 +140,7 @@
     .run-facts { margin-bottom: 20px; }
     .run-facts .v { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
     .run-facts .v small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+    .fact .d { font-size: 12px; color: var(--muted); margin-top: 3px; }
     .seg { display: flex; gap: 2px; padding: 3px; background: var(--raise); border-radius: 99px; }
     .seg button { padding: 5px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--muted); }
     .seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
@@ -250,39 +265,6 @@
       <div class="grow">Haz una copia de tus datos<br><span id="backupAge"></span></div>
       <button id="backupNow">Copiar</button>
     </div>
-    <section class="card" id="habitsCard">
-      <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Ejercicios de hoy</div><div class="meta" id="habitsMeta"></div></div>
-      <div id="habits"></div>
-    </section>
-
-    <section class="card">
-      <div class="eyebrow">Esta semana</div>
-      <div class="hero-row">
-        <div class="big" id="wkCount">0<small>/4</small></div>
-        <div class="hero-sub" id="wkSub"></div>
-      </div>
-      <div class="progress"><div id="wkProg" style="width:0"></div></div>
-      <div class="week" id="week"></div>
-    </section>
-
-    <div class="kpis">
-      <div class="kpi"><div class="eyebrow">Sesiones · mes</div><div class="v" id="kMonth"></div><div class="d" id="kMonthD"></div></div>
-      <div class="kpi"><div class="eyebrow">Tiempo · mes</div><div class="v" id="kTime"></div><div class="d" id="kTimeD"></div></div>
-    </div>
-
-    <section class="card" id="runCard">
-      <div class="card-head" style="align-items:center"><div id="distSeg"></div><div class="meta" id="runMeta"></div></div>
-      <div class="facts run-facts">
-        <div class="fact"><div class="eyebrow">Semana</div><div class="v" id="runWeek"></div></div>
-        <div class="fact"><div class="eyebrow">Mes</div><div class="v" id="runMonth"></div></div>
-        <div class="fact"><div class="eyebrow" id="runThird">Ritmo · mes</div><div class="v" id="runPace"></div></div>
-      </div>
-      <div class="card-head" style="margin-bottom:10px"><div class="eyebrow">Km por semana</div><div class="meta" id="runBarsMeta"></div></div>
-      <div class="bars" id="runBars"></div>
-      <div class="bar-x" id="runBarsX"></div>
-      <div class="empty hidden" id="runEmpty"></div>
-    </section>
-
     <section class="card">
       <div class="card-head"><div class="eyebrow">Actividad</div><div class="meta" id="heatMeta"></div></div>
       <div class="heat-wrap">
@@ -296,20 +278,50 @@
     </section>
 
     <section class="card">
-      <div class="card-head"><div class="eyebrow" id="barsTitle">Minutos por semana</div><div class="meta" id="barsMeta">12 semanas</div></div>
-      <div class="bars" id="bars"></div>
-      <div class="bar-x" id="barsX"></div>
+      <div class="card-head nav-head"><div class="eyebrow" id="wkTitle">Esta semana</div>
+        <div class="daynav"><button id="wkPrev" aria-label="Semana anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="wkNext" aria-label="Semana siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+      <div class="hero-row"><div class="big" id="wkTime"></div></div>
+      <div class="week" id="week"></div>
     </section>
 
     <section class="card">
-      <div class="card-head"><div class="eyebrow">Por deporte</div><div class="meta">Últimos 90 días</div></div>
+      <div class="card-head nav-head"><div class="eyebrow" id="moTitle"></div>
+        <div class="daynav"><button id="moPrev" aria-label="Mes anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="moNext" aria-label="Mes siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+      <div class="facts run-facts">
+        <div class="fact"><div class="eyebrow">Sesiones</div><div class="v" id="kMonth"></div><div class="d" id="kMonthD"></div></div>
+        <div class="fact"><div class="eyebrow">Tiempo</div><div class="v" id="kTime"></div><div class="d" id="kTimeD"></div></div>
+      </div>
+      <div class="mdays" id="moBars"></div>
+      <div class="mdays-x" id="moBarsX"></div>
+    </section>
+
+    <section class="card" id="runCard">
+      <div class="card-head" style="align-items:center"><div id="distSeg"></div><div class="meta" id="runMeta"></div></div>
+      <div class="facts run-facts">
+        <div class="fact"><div class="eyebrow">Semana</div><div class="v" id="runWeek"></div></div>
+        <div class="fact"><div class="eyebrow">Mes</div><div class="v" id="runMonth"></div></div>
+        <div class="fact"><div class="eyebrow" id="runThird"></div><div class="v" id="runPace"></div></div>
+      </div>
+      <div class="card-head" style="margin-bottom:10px"><div class="eyebrow" id="runBarsTitle"></div><div class="meta" id="runBarsMeta"></div></div>
+      <div class="bars" id="runBars"></div>
+      <div class="bar-x" id="runBarsX"></div>
+      <div class="chart-legend" id="runLegend"></div>
+      <div class="empty hidden" id="runEmpty"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><div class="eyebrow">Por deporte</div><div class="meta" id="bySportMeta"></div></div>
       <div id="bySport"></div>
     </section>
 
+    <section class="card" id="habitsCard">
+      <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Ejercicios de hoy</div><div class="meta" id="habitsMeta"></div></div>
+      <div id="habits"></div>
+    </section>
+
     <section class="card">
-      <div class="facts">
-        <div class="fact"><div class="eyebrow">Día fuerte</div><div class="v" id="fDay">—</div></div>
-        <div class="fact"><div class="eyebrow">Media</div><div class="v" id="fAvg">—</div></div>
+      <div class="facts" style="grid-template-columns:1fr 1fr">
+        <div class="fact"><div class="eyebrow">Media por sesión</div><div class="v" id="fAvg">—</div></div>
         <div class="fact"><div class="eyebrow">Total</div><div class="v" id="fTotal">—</div></div>
       </div>
     </section>
@@ -380,11 +392,6 @@
   <div class="sheet" id="setSheet">
     <div class="grip"></div>
     <div class="sheet-head"><h3>Ajustes</h3></div>
-    <div class="section-lbl">Objetivo semanal</div>
-    <div class="set-row">
-      <span>Sesiones por semana</span>
-      <div class="stepper"><button id="goalMinus" aria-label="Menos">−</button><b id="goalVal"></b><button id="goalPlus" aria-label="Más">+</button></div>
-    </div>
     <div class="section-lbl">Deportes</div>
     <div id="sportList"></div>
     <div class="row" style="margin-top:10px">
@@ -414,16 +421,14 @@ const DEFAULT_SPORTS = ['Correr', 'Gimnasio', 'Ciclismo', 'Natación', 'Fútbol'
 const DUR = [15, 30, 45, 60, 90];
 const HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mandíbula' }];
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-const DOW_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace? }] }, goal, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
+// Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace?, speed? }] }, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
 // km = kilómetros; pace = ritmo en segundos por km (Correr); speed = velocidad media en km/h (Ciclismo)
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
   let d;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!d || !d.sports || !d.days) d = { sports: DEFAULT_SPORTS, days: {} };
-  d.goal = d.goal || 4;
   d.checks = d.checks || {};
   d.sports.forEach(s => { if (s.c === undefined) s.c = freeSlot(d.sports); });
   return d;
@@ -538,19 +543,8 @@ function renderPanel() {
 
   renderHabits(t);
 
-  // Semana
-  const ws = startOfWeek(t);
-  const wk = rangeStats(ws, addDays(ws, 6));
-  $('wkCount').innerHTML = `${wk.sessions}<small>/${data.goal}</small>`;
-  const left = Math.max(0, data.goal - wk.sessions);
-  $('wkSub').innerHTML = `<b>${fmtTimePlain(wk.min)}</b><br>${left ? `faltan ${left} para el objetivo` : 'objetivo cumplido'}`;
-  $('wkProg').style.width = Math.min(100, wk.sessions / data.goal * 100) + '%';
-  $('week').innerHTML = DOW.map((l, i) => {
-    const d = addDays(ws, i), k = keyOf(d), es = entriesOf(k);
-    const pips = [...new Set(es.map(e => e.sport))].slice(0, 3).map(id => `<span class="pip" style="--c:${color(sportById(id))}"></span>`).join('');
-    const cls = (es.length ? ' on' : '') + (d.getTime() === t.getTime() ? ' today' : '') + (d > t ? ' future' : '');
-    return `<button data-day="${k}"><div class="lbl">${l}</div><div class="dot${cls}">${pips}</div></button>`;
-  }).join('');
+  renderWeek(t);
+  renderMonth(t);
 
   // KPIs
   const st = streaks();
@@ -559,11 +553,37 @@ function renderPanel() {
   $('kBest').innerHTML = `${st.best}<small>${st.best === 1 ? 'día' : 'días'}</small>`;
   $('kBestD').textContent = st.bestEnd ? `Hasta el ${fmt(st.bestEnd, { day: 'numeric', month: 'short' })}` : 'Sin registros aún';
 
-  const ms = new Date(t.getFullYear(), t.getMonth(), 1);
-  const pms = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-  const pEnd = new Date(pms.getFullYear(), pms.getMonth(), Math.min(t.getDate(), new Date(t.getFullYear(), t.getMonth(), 0).getDate()));
-  const mo = rangeStats(ms, t), pmo = rangeStats(pms, pEnd);
-  const pName = monthShort(pms);
+  renderHeat(t);
+  renderRun(t);
+  renderBySport(t);
+  renderFacts();
+  renderBackup(t);
+}
+
+// Semana y mes: con las flechas se ven las anteriores (0 = la actual)
+let wkOff = 0, moOff = 0;
+function renderWeek(t) {
+  const ws = addDays(startOfWeek(t), -7 * wkOff), wk = rangeStats(ws, addDays(ws, 6));
+  $('wkTitle').textContent = wkOff === 0 ? 'Esta semana' : wkOff === 1 ? 'Semana pasada' : `Semana del ${fmt(ws, { day: 'numeric', month: 'short' })}`;
+  $('wkNext').disabled = wkOff === 0;
+  $('wkTime').innerHTML = wk.min || !wk.sessions ? fmtTime(wk.min) : `${wk.sessions}<small>ses.</small>`;
+  $('week').innerHTML = DOW.map((l, i) => {
+    const d = addDays(ws, i), k = keyOf(d), es = entriesOf(k), m = minutesOf(k);
+    const pips = [...new Set(es.map(e => e.sport))].slice(0, 3).map(id => `<span class="pip" style="--c:${color(sportById(id))}"></span>`).join('');
+    const cls = (es.length ? ' on' : '') + (d.getTime() === t.getTime() ? ' today' : '') + (d > t ? ' future' : '');
+    return `<button data-day="${k}"${d > t ? ' disabled' : ''}><div class="lbl">${l}</div><div class="dot${cls}">${pips}</div><div class="wmin">${m ? m + '′' : ''}</div></button>`;
+  }).join('');
+}
+function renderMonth(t) {
+  const ms = new Date(t.getFullYear(), t.getMonth() - moOff, 1), cur = moOff === 0;
+  const dim = new Date(ms.getFullYear(), ms.getMonth() + 1, 0).getDate();
+  const pms = new Date(ms.getFullYear(), ms.getMonth() - 1, 1), pdim = new Date(ms.getFullYear(), ms.getMonth(), 0).getDate();
+  // el mes en curso se compara con el mismo tramo del anterior; los pasados, completos
+  const end = cur ? t : new Date(ms.getFullYear(), ms.getMonth(), dim);
+  const pEnd = new Date(pms.getFullYear(), pms.getMonth(), cur ? Math.min(t.getDate(), pdim) : pdim);
+  const mo = rangeStats(ms, end), pmo = rangeStats(pms, pEnd), pName = monthShort(pms);
+  $('moTitle').textContent = fmt(ms, { month: 'long' }) + (ms.getFullYear() !== t.getFullYear() ? ' ' + ms.getFullYear() : '');
+  $('moNext').disabled = cur;
   const delta = (a, b, f) => {
     const d = a - b;
     if (!d) return `Igual que ${pName}`;
@@ -572,15 +592,26 @@ function renderPanel() {
   $('kMonth').innerHTML = `${mo.sessions}`;
   $('kMonthD').innerHTML = delta(mo.sessions, pmo.sessions, String);
   $('kTime').innerHTML = fmtTime(mo.min);
-  $('kTimeD').innerHTML = delta(mo.min, pmo.min, fmtTimePlain);
-
-  renderHeat(t);
-  renderBars(t);
-  renderRun(t);
-  renderBySport(t);
-  renderFacts();
-  renderBackup(t);
+  $('kTimeD').innerHTML = delta(mo.min, pmo.min, m => m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
+  // un palito por día: altura según los minutos (sin duración cuenta como 30)
+  const days = [];
+  for (let i = 1; i <= dim; i++) {
+    const d = new Date(ms.getFullYear(), ms.getMonth(), i), k = keyOf(d), es = entriesOf(k);
+    days.push({ d, k, es, m: d > t ? null : es.reduce((a, e) => a + (e.min || 30), 0) });
+  }
+  const max = Math.max(60, ...days.map(x => x.m || 0));
+  $('moBars').innerHTML = days.map(({ d, k, es, m }) => {
+    if (m === null) return '<span></span>';
+    const tip = fmt(d, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' +
+      (es.length ? es.map(e => sportById(e.sport).name + (e.min ? ` ${e.min}′` : '')).join(', ') : 'Descanso');
+    return `<span data-tip="${esc(tip)}"><i class="${m ? '' : 'zero'}${k === keyOf(t) ? ' today' : ''}"${m ? ` style="height:${Math.max(8, m / max * 100)}%"` : ''}></i></span>`;
+  }).join('');
+  $('moBarsX').innerHTML = `<span>1</span><span>15</span><span>${dim}</span>`;
 }
+$('wkPrev').onclick = () => { wkOff++; renderWeek(today()); };
+$('wkNext').onclick = () => { wkOff = Math.max(0, wkOff - 1); renderWeek(today()); };
+$('moPrev').onclick = () => { moOff++; renderMonth(today()); };
+$('moNext').onclick = () => { moOff = Math.max(0, moOff - 1); renderMonth(today()); };
 
 // Aviso de copia de seguridad (solo si está activado en Ajustes): aparece si hay datos y la última copia tiene más de 14 días
 const daysSince = k => k ? Math.round((today() - parseKey(k)) / 864e5) : null;
@@ -625,7 +656,8 @@ function renderHeat(t) {
 
 // Barras de las últimas semanas: la actual en verde fuerte, número en la actual y en la máxima,
 // línea discontinua con la media de las semanas anteriores con datos. Devuelve la media.
-function drawBars(id, weeks, val, label, tipOf) {
+// segs (opcional): trozos de cada barra [{ v, c }] para apilarlos por deporte
+function drawBars(id, weeks, val, label, tipOf, segs) {
   const N = weeks.length;
   const max = Math.max(1, ...weeks.map(val));
   const past = weeks.slice(0, -1).filter(w => val(w) > 0);
@@ -635,7 +667,10 @@ function drawBars(id, weeks, val, label, tipOf) {
     const v = val(w), h = v / max * 100;
     const isCur = i === N - 1;
     const lbl = (isCur || i === maxIdx) && v ? `<div class="val">${label(v)}</div>` : '';
-    return `<div class="bar${isCur ? ' cur' : ''}" data-tip="${esc(tipOf(w))}">${lbl}<div class="fill" style="height:${h * 0.82}%"></div></div>`;
+    const fill = segs
+      ? `<div class="fill stack" style="height:${h * 0.82}%">${segs(w).map(x => `<i style="flex:${x.v} 1 0px;background:${x.c}"></i>`).join('')}</div>`
+      : `<div class="fill" style="height:${h * 0.82}%"></div>`;
+    return `<div class="bar${isCur ? ' cur' : ''}" data-tip="${esc(tipOf(w))}">${lbl}${fill}</div>`;
   }).join('');
   if (avg) html += `<div class="avgline" style="bottom:${avg / max * 82}%"></div>`;
   $(id).innerHTML = html;
@@ -649,16 +684,6 @@ const lastWeeks = (t, N, stats) => {
   return weeks;
 };
 const weekOf = w => `Semana del ${fmt(w.s, { day: 'numeric', month: 'short' })}`;
-
-function renderBars(t) {
-  const weeks = lastWeeks(t, 12, rangeStats);
-  // Si nunca has puesto minutos, mostramos sesiones
-  const useMin = weeks.some(w => w.min > 0);
-  $('barsTitle').textContent = useMin ? 'Minutos por semana' : 'Sesiones por semana';
-  const avg = drawBars('bars', weeks, w => useMin ? w.min : w.sessions, String,
-    w => `${weekOf(w)} · ${w.sessions} ses. · ${fmtTimePlain(w.min)}`);
-  $('barsMeta').textContent = avg ? `media ${Math.round(avg)} · 12 semanas` : '12 semanas';
-}
 
 // ---------- DISTANCIA (correr y bici, siempre por separado) ----------
 // Correr guarda el ritmo (pace, s/km); la bici la velocidad media (speed, km/h)
@@ -683,25 +708,53 @@ const distStats = k => (from, to) => {
   // medias ponderadas por km
   return { n, km, pace: pkm ? psec / pkm : null, speed: sh ? skm / sh : null };
 };
-// Pestaña por defecto: la del último día con km
-function defaultKind(kinds) {
-  const keys = Object.keys(data.days).sort().reverse();
-  for (const k of keys) for (const e of data.days[k]) {
-    const kd = kindOf(sportById(e.sport));
-    if (e.km && kinds.includes(kd)) return kd;
-  }
-  return kinds[0];
+// Total: tiempo de todos los deportes (barras apiladas por deporte) y km de correr + bici
+const fmtH = m => (m / 60).toLocaleString('es-ES', { maximumFractionDigits: 1 });
+function totalStats(from, to) {
+  const r = { sessions: 0, min: 0, km: 0, by: {} };
+  for (let d = new Date(from); d <= to; d = addDays(d, 1))
+    entriesOf(keyOf(d)).forEach(e => {
+      r.sessions++; r.min += e.min || 0; r.km += e.km || 0;
+      const b = r.by[e.sport] || (r.by[e.sport] = { n: 0, min: 0 });
+      b.n++; b.min += e.min || 0;
+    });
+  return r;
 }
-let distView = null;
+const sportOrder = id => { const i = data.sports.findIndex(s => s.id === id); return i < 0 ? 99 : i; };
+function renderTotal(t) {
+  const wk = totalStats(startOfWeek(t), t), mo = totalStats(new Date(t.getFullYear(), t.getMonth(), 1), t);
+  $('runWeek').innerHTML = fmtTime(wk.min);
+  $('runMonth').innerHTML = fmtTime(mo.min);
+  $('runThird').textContent = 'Km · mes';
+  $('runPace').innerHTML = `${fmtKm(mo.km)}<small>km</small>`;
+  $('runMeta').textContent = `${mo.sessions} ${mo.sessions === 1 ? 'sesión' : 'sesiones'} este mes`;
+  const weeks = lastWeeks(t, 12, totalStats);
+  // Si nunca has puesto minutos, mostramos sesiones
+  const useMin = weeks.some(w => w.min > 0), pick = b => useMin ? b.min : b.n;
+  $('runBarsTitle').textContent = useMin ? 'Horas por semana' : 'Sesiones por semana';
+  ['runBars', 'runBarsX', 'runLegend'].forEach(id => $(id).classList.remove('hidden'));
+  $('runEmpty').classList.add('hidden');
+  const avg = drawBars('runBars', weeks, w => useMin ? w.min : w.sessions, useMin ? fmtH : String,
+    w => `${weekOf(w)} · ${w.sessions} ses. · ${fmtTimePlain(w.min)}${w.km ? ` · ${fmtKm(w.km)} km` : ''}`,
+    w => Object.entries(w.by).filter(([, b]) => pick(b) > 0).sort((a, b) => sportOrder(a[0]) - sportOrder(b[0]))
+      .map(([id, b]) => ({ v: pick(b), c: color(sportById(id)) })));
+  $('runBarsMeta').textContent = avg ? `media ${useMin ? fmtH(avg) + ' h' : Math.round(avg)} · 12 semanas` : '12 semanas';
+  const used = [...new Set(weeks.flatMap(w => Object.keys(w.by)))].sort((a, b) => sportOrder(a) - sportOrder(b));
+  $('runLegend').innerHTML = used.map(id => { const s = sportById(id); return `<span><i class="pip" style="--c:${color(s)}"></i>${esc(s.name)}</span>`; }).join('');
+}
+
+let distView = 'total'; // la pestaña Total sale por defecto
 function renderRun(t) {
   const kinds = Object.keys(KINDS).filter(kindSport);
-  $('runCard').classList.toggle('hidden', !kinds.length);
-  if (!kinds.length) return;
-  if (!kinds.includes(distView)) distView = defaultKind(kinds);
+  if (!kinds.includes(distView)) distView = 'total';
+  const views = ['total', ...kinds];
+  $('distSeg').innerHTML = views.length > 1
+    ? `<div class="seg">${views.map(x => `<button data-kind="${x}"${x === distView ? ' class="on"' : ''}>${x === 'total' ? 'Total' : esc(kindSport(x).name)}</button>`).join('')}</div>`
+    : '<div class="eyebrow">Total</div>';
+  if (distView === 'total') return renderTotal(t);
   const k = distView, K = KINDS[k], name = kindSport(k).name, stats = distStats(k);
-  $('distSeg').innerHTML = kinds.length > 1
-    ? `<div class="seg">${kinds.map(x => `<button data-kind="${x}"${x === k ? ' class="on"' : ''}>${esc(kindSport(x).name)}</button>`).join('')}</div>`
-    : `<div class="eyebrow">${esc(name)}</div>`;
+  $('runBarsTitle').textContent = 'Km por semana';
+  $('runLegend').classList.add('hidden');
   const wk = stats(startOfWeek(t), t), mo = stats(new Date(t.getFullYear(), t.getMonth(), 1), t);
   $('runWeek').innerHTML = `${fmtKm(wk.km)}<small>km</small>`;
   $('runMonth').innerHTML = `${fmtKm(mo.km)}<small>km</small>`;
@@ -724,7 +777,8 @@ $('distSeg').onclick = e => {
 };
 
 function renderBySport(t) {
-  const from = addDays(t, -89), by = {};
+  const from = new Date(t.getFullYear(), 0, 1), by = {}; // desde el 1 de enero
+  $('bySportMeta').textContent = `Desde enero ${t.getFullYear()}`;
   for (let d = new Date(from); d <= t; d = addDays(d, 1))
     entriesOf(keyOf(d)).forEach(e => {
       const b = by[e.sport] || (by[e.sport] = { n: 0, min: 0 });
@@ -743,16 +797,12 @@ function renderBySport(t) {
 }
 
 function renderFacts() {
-  const counts = Array(7).fill(0);
   let sessions = 0, min = 0, withMin = 0;
   for (const k of Object.keys(data.days)) {
     const es = entriesOf(k);
-    if (es.length) counts[dow(parseKey(k))]++;
     sessions += es.length;
     es.forEach(e => { if (e.min) { min += e.min; withMin++; } });
   }
-  const best = Math.max(...counts);
-  $('fDay').textContent = best ? DOW_LONG[counts.indexOf(best)] : '—';
   $('fAvg').textContent = withMin ? `${Math.round(min / withMin)} min` : '—';
   $('fTotal').textContent = sessions ? `${sessions} ses.` : '—';
 }
@@ -931,7 +981,7 @@ $('logSave').onclick = () => {
       if (km && speed && !entry.min) entry.min = Math.round(km / speed * 60);
       if (speed) entry.speed = speed;
     }
-    if (km) { entry.km = km; distView = kind; } // el panel enseña lo último que has apuntado
+    if (km) entry.km = km;
   }
   (data.days[logDay] || (data.days[logDay] = [])).push(entry);
   save();
@@ -945,7 +995,6 @@ $('addBtn').onclick = () => openLog(keyOf(today()));
 
 // Ajustes
 function renderSettings() {
-  $('goalVal').textContent = data.goal;
   $('lastBackup').textContent = ageText(daysSince(data.lastBackup)) + '.';
   $('reminderSwitch').classList.toggle('on', !!data.backupReminder);
   $('reminderSwitch').setAttribute('aria-checked', !!data.backupReminder);
@@ -955,8 +1004,6 @@ function renderSettings() {
 }
 $('settingsBtn').onclick = () => { renderSettings(); openSheet('setSheet'); };
 $('setClose').onclick = closeSheets;
-$('goalMinus').onclick = () => { data.goal = Math.max(1, data.goal - 1); save(); renderSettings(); };
-$('goalPlus').onclick = () => { data.goal = Math.min(14, data.goal + 1); save(); renderSettings(); };
 $('sportList').onclick = e => {
   const b = e.target.closest('[data-rm]'); if (!b) return;
   const s = sportById(b.dataset.rm);
@@ -1022,7 +1069,7 @@ function hideTip() { tip.classList.remove('show'); }
 document.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el && e.pointerType === 'mouse') showTip(el); });
 document.addEventListener('pointerout', e => { if (e.pointerType === 'mouse' && e.target.closest('[data-tip]')) hideTip(); });
 // En el móvil: tocar una barra o una celda del mapa muestra su detalle
-['bars', 'runBars'].forEach(id => $(id).addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); }));
+['runBars', 'moBars'].forEach(id => $(id).addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); }));
 document.getElementById('heat').addEventListener('click', e => {
   const el = e.target.closest('[data-tip]'); if (!el) return;
   e.stopPropagation(); showTip(el);

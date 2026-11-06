@@ -2,12 +2,12 @@
 
 App sencilla para iPhone para apuntar qué deporte haces cada día y ver en un calendario los días que has entrenado.
 
-- Panel con progreso semanal frente a tu objetivo, rachas, comparativa con el mes anterior, mapa de actividad de 20 semanas, minutos por semana y reparto por deporte.
+- Panel, en este orden: mapa de actividad de 20 semanas; la semana (tiempo total y días, con flechas para ver semanas pasadas); el mes (sesiones y tiempo comparados con el mes anterior y un palito por día, con flechas para ver meses pasados); horas por semana con pestañas Total | Correr | Ciclismo; reparto por deporte desde enero; ejercicios de cuello y mandíbula; media y total de sesiones; rachas.
+- Pestaña Total: horas por semana apiladas por deporte y km del mes (correr + bici). Correr y Ciclismo, por separado: km de la semana y del mes, ritmo (min/km) o velocidad media (km/h) y km por semana.
 - Casillas diarias para los ejercicios de cuello y mandíbula, con los últimos 7 días a la vista. Al marcarlos desaparecen del panel hasta el día siguiente.
-- Al registrar Correr puedes apuntar los km y el ritmo medio (min/km); en Ciclismo, los km y la velocidad media (km/h). El panel muestra cada uno por separado (selector Correr | Ciclismo): km de la semana y del mes, ritmo o velocidad media y una gráfica de km por semana.
 - Calendario mensual con un punto de color por deporte.
 - Botón + para registrar una sesión (deporte y duración) en cualquier día.
-- Deportes y objetivo semanal configurables desde Ajustes.
+- Deportes configurables desde Ajustes.
 - Funciona sin conexión. Los datos se guardan en el propio iPhone; exporta/importa una copia desde Ajustes. Si lo activas en Ajustes, la app te avisa cuando llevas más de 14 días sin hacer copia.
 
 ## Instalar en el iPhone
