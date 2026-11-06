@@ -234,7 +234,6 @@
     .w-delta { font-size: 12px; color: var(--muted); margin-top: 3px; }
     .w-in { flex: 0 0 120px; }
     .w-in input { padding-top: 8px; padding-bottom: 8px; }
-    .w-hint { font-size: 12px; color: var(--muted); }
     .w-chart svg { display: block; width: 100%; overflow: visible; }
     .w-chart text { font-size: 10px; fill: var(--muted); font-family: inherit; }
     /* Sesión en edición */
@@ -664,8 +663,7 @@ function renderWeight(t) {
   const area = pts.length > 1 ? `<path d="${line}L${X(pts[pts.length - 1].d)},${H - B}L${X(pts[0].d)},${H - B}Z" fill="var(--accent)" opacity=".12"/>` +
     `<path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   $('wChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">${grid}${area}${dots}
-    <text x="${L}" y="${H - 2}">${fmt(new Date(x0), { day: 'numeric', month: 'short' })}</text><text x="${W - R}" y="${H - 2}" text-anchor="end">Hoy</text></svg>` +
-    (pts.length === 1 ? '<div class="w-hint">Cuando apuntes otro día verás la evolución.</div>' : '');
+    <text x="${L}" y="${H - 2}">${fmt(new Date(x0), { day: 'numeric', month: 'short' })}</text><text x="${W - R}" y="${H - 2}" text-anchor="end">Hoy</text></svg>`;
 }
 $('wToday').onchange = e => { if (setWeight(keyOf(today()), e.target.value)) e.target.blur(); renderWeight(today()); };
 
