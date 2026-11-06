@@ -228,8 +228,13 @@
     textarea { resize: none; min-height: 72px; line-height: 1.4; display: block; }
 
     /* Peso */
-    .w-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; }
-    .w-in { flex: 0 0 132px; }
+    .w-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 12px; }
+    .w-now { font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+    .w-now small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+    .w-delta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .w-in { flex: 0 0 120px; }
+    .w-in input { padding-top: 8px; padding-bottom: 8px; }
+    .w-hint { font-size: 12px; color: var(--muted); }
     .w-chart svg { display: block; width: 100%; overflow: visible; }
     .w-chart text { font-size: 10px; fill: var(--muted); font-family: inherit; }
     /* Sesión en edición */
@@ -344,7 +349,7 @@
 
     <section class="card">
       <div class="card-head"><div class="eyebrow">Peso</div><div class="meta" id="wMeta"></div></div>
-      <div class="w-top"><div class="big" id="wNow"></div>
+      <div class="w-top"><div><div class="w-now" id="wNow"></div><div class="w-delta" id="wDelta"></div></div>
         <label class="field w-in"><input id="wToday" inputmode="decimal" placeholder="Hoy" autocomplete="off"><span>kg</span></label></div>
       <div class="w-chart" id="wChart"></div>
     </section>
@@ -637,29 +642,30 @@ function renderWeight(t) {
   if (document.activeElement !== $('wToday')) $('wToday').value = data.weight[tk] ? fmtKg(data.weight[tk]) : '';
   // cambio frente al último peso de hace 30 días o más
   const ref = keys.filter(k => k <= keyOf(addDays(t, -30))).pop();
-  if (last && ref) {
-    const d = Math.round((last - data.weight[ref]) * 10) / 10;
-    $('wMeta').textContent = d ? `${d > 0 ? '▲' : '▼'} ${fmtKg(Math.abs(d))} kg en 30 días` : 'Igual que hace 30 días';
-  } else $('wMeta').textContent = last ? 'Últimos 6 meses' : 'Apunta tu peso';
-  // gráfica de los últimos 6 meses
-  const from = keyOf(addDays(t, -182)), pts = keys.filter(k => k >= from).map(k => ({ k, d: parseKey(k), v: data.weight[k] }));
-  if (pts.length < 2) { $('wChart').innerHTML = ''; return; }
-  const W = $('wChart').clientWidth || 340, H = 120, L = 34, R = 8, T = 10, B = 20;
-  const x0 = pts[0].d.getTime(), x1 = Math.max(t.getTime(), x0 + 864e5);
-  const lo = Math.floor(Math.min(...pts.map(p => p.v)) - .5), hi = Math.ceil(Math.max(...pts.map(p => p.v)) + .5);
+  const d = last && ref ? Math.round((last - data.weight[ref]) * 10) / 10 : null;
+  $('wDelta').textContent = d === null ? (last ? `Último: ${fmt(parseKey(keys[keys.length - 1]), { day: 'numeric', month: 'short' })}` : '')
+    : d ? `${d > 0 ? '▲' : '▼'} ${fmtKg(Math.abs(d))} kg en 30 días` : 'Igual que hace 30 días';
+  // gráfica pequeña del último año: un punto por cada vez que te pesas (no hace falta hacerlo a diario)
+  const pts = keys.filter(k => k >= keyOf(addDays(t, -365))).map(k => ({ d: parseKey(k), v: data.weight[k] }));
+  $('wMeta').textContent = pts.length ? `${pts.length} ${pts.length === 1 ? 'registro' : 'registros'} · 12 meses` : 'Apunta tu peso';
+  if (!pts.length) { $('wChart').innerHTML = ''; return; }
+  const W = $('wChart').clientWidth || 340, H = 76, L = 30, R = 8, T = 8, B = 16;
+  const x0 = Math.min(pts[0].d.getTime(), t.getTime() - 14 * 864e5), x1 = t.getTime();
+  const vs = pts.map(p => p.v), lo = Math.floor(Math.min(...vs) - .5), hi = Math.ceil(Math.max(...vs) + .5);
   const X = d => L + (d.getTime() - x0) / (x1 - x0) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.d).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
-  const grid = [hi, (hi + lo) / 2, lo].map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>` +
-    `<text x="${L - 6}" y="${Y(v) + 3}" text-anchor="end">${fmtKm(v)}</text>`).join('');
+  const grid = [hi, lo].map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>` +
+    `<text x="${L - 6}" y="${Y(v) + 3}" text-anchor="end">${v}</text>`).join('');
   const dots = pts.map((p, i) => {
-    const tip = `${fmt(p.d, { day: 'numeric', month: 'short' })} · ${fmtKg(p.v)} kg`, last = i === pts.length - 1;
+    const tip = `${fmt(p.d, { day: 'numeric', month: 'short' })} · ${fmtKg(p.v)} kg`, end = i === pts.length - 1;
     return `<g data-tip="${esc(tip)}"><circle cx="${X(p.d)}" cy="${Y(p.v)}" r="12" fill="transparent"/>` +
-      `<circle cx="${X(p.d)}" cy="${Y(p.v)}" r="${last ? 4 : 2.5}" fill="var(--accent)"${last ? ' stroke="var(--card)" stroke-width="2"' : ''}/></g>`;
+      `<circle cx="${X(p.d)}" cy="${Y(p.v)}" r="${end ? 4 : 3}" fill="var(--accent)"${end ? ' stroke="var(--card)" stroke-width="2"' : ''}/></g>`;
   }).join('');
-  $('wChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">${grid}
-    <path d="${line}L${X(pts[pts.length - 1].d)},${H - B}L${X(pts[0].d)},${H - B}Z" fill="var(--accent)" opacity=".12"/>
-    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}
-    <text x="${L}" y="${H - 4}">${fmt(pts[0].d, { day: 'numeric', month: 'short' })}</text><text x="${W - R}" y="${H - 4}" text-anchor="end">Hoy</text></svg>`;
+  const area = pts.length > 1 ? `<path d="${line}L${X(pts[pts.length - 1].d)},${H - B}L${X(pts[0].d)},${H - B}Z" fill="var(--accent)" opacity=".12"/>` +
+    `<path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  $('wChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">${grid}${area}${dots}
+    <text x="${L}" y="${H - 2}">${fmt(new Date(x0), { day: 'numeric', month: 'short' })}</text><text x="${W - R}" y="${H - 2}" text-anchor="end">Hoy</text></svg>` +
+    (pts.length === 1 ? '<div class="w-hint">Cuando apuntes otro día verás la evolución.</div>' : '');
 }
 $('wToday').onchange = e => { if (setWeight(keyOf(today()), e.target.value)) e.target.blur(); renderWeight(today()); };
 
