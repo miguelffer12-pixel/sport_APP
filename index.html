@@ -227,6 +227,18 @@
     input:focus, textarea:focus { border-color: var(--muted); }
     textarea { resize: none; min-height: 72px; line-height: 1.4; display: block; }
 
+    /* Peso */
+    .w-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; }
+    .w-in { flex: 0 0 132px; }
+    .w-chart svg { display: block; width: 100%; overflow: visible; }
+    .w-chart text { font-size: 10px; fill: var(--muted); font-family: inherit; }
+    /* Sesión en edición */
+    .sess[data-edit] { cursor: pointer; }
+    .sess.editing .grow { color: var(--accent); font-weight: 600; }
+    .sess.editing .grow::after { content: ' · editando'; font-size: 12px; font-weight: 500; color: var(--muted); }
+    .day-food { font-size: 14px; color: var(--text2); line-height: 1.5; }
+    .day-food b { color: var(--text); font-weight: 600; }
+
     /* Comida */
     .food-day { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
     .food-day::first-letter { text-transform: uppercase; }
@@ -330,8 +342,15 @@
       <div id="bySport"></div>
     </section>
 
+    <section class="card">
+      <div class="card-head"><div class="eyebrow">Peso</div><div class="meta" id="wMeta"></div></div>
+      <div class="w-top"><div class="big" id="wNow"></div>
+        <label class="field w-in"><input id="wToday" inputmode="decimal" placeholder="Hoy" autocomplete="off"><span>kg</span></label></div>
+      <div class="w-chart" id="wChart"></div>
+    </section>
+
     <section class="card" id="habitsCard">
-      <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Ejercicios de hoy</div><div class="meta" id="habitsMeta"></div></div>
+      <div class="card-head" style="margin-bottom:4px"><div class="eyebrow">Hábitos de hoy</div><div class="meta" id="habitsMeta"></div></div>
       <div id="habits"></div>
     </section>
 
@@ -418,8 +437,8 @@
       </div>
     </div>
     <div id="logEntries"></div>
-    <div class="section-lbl">Ejercicios</div>
-    <div id="logHabits"></div>
+    <div id="logHabitsBox"><div class="section-lbl">Hábitos</div>
+    <div id="logHabits"></div></div>
     <div class="section-lbl">Deporte</div>
     <div class="pills" id="logSports"></div>
     <div class="section-lbl">Duración</div>
@@ -433,7 +452,12 @@
       <div class="hint" style="margin-top:8px" id="distHint"></div>
     </div>
     <button class="btn primary" id="logSave" disabled>Guardar sesión</button>
+    <button class="btn ghost hidden" id="logCancel">Cancelar edición</button>
     <button class="btn ghost" id="logClose">Hecho</button>
+    <div class="section-lbl">Peso del día</div>
+    <label class="field"><input id="logWeight" inputmode="decimal" placeholder="Sin apuntar" autocomplete="off"><span>kg</span></label>
+    <div class="section-lbl">Comida del día</div>
+    <div id="logFood"></div>
   </div>
 
   <!-- Hoja: ajustes -->
@@ -445,6 +469,13 @@
     <div class="row" style="margin-top:10px">
       <input id="newName" placeholder="Añadir deporte" autocomplete="off">
       <button class="pill" id="addSport" style="flex:0 0 auto">Añadir</button>
+    </div>
+    <div class="section-lbl">Hábitos diarios</div>
+    <div class="hint">Casillas que marcas cada día (en el panel y al registrar).</div>
+    <div id="habitList"></div>
+    <div class="row" style="margin-top:10px">
+      <input id="newHabit" placeholder="Añadir hábito (p. ej. Estiramientos)" autocomplete="off">
+      <button class="pill" id="addHabit" style="flex:0 0 auto">Añadir</button>
     </div>
     <div class="section-lbl">Copia de seguridad</div>
     <div class="hint">Tus datos se guardan solo en este iPhone. Exporta una copia de vez en cuando (a Archivos o iCloud). <span id="lastBackup"></span></div>
@@ -467,10 +498,11 @@ const KEY = 'mi-deporte-v1';
 const DEFAULT_SPORTS = ['Correr', 'Gimnasio', 'Ciclismo', 'Natación', 'Fútbol', 'Pádel']
   .map((name, i) => ({ id: 'd' + i, name, c: i + 1 }));
 const DUR = [15, 30, 45, 60, 90];
-const HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mandíbula' }];
+const DEFAULT_HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mandíbula' }];
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 // Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace?, speed? }] }, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
+// habits: [{ id, name }] casillas diarias; checks: { 'YYYY-MM-DD': [ids marcados] }; weight: { 'YYYY-MM-DD': kg }
 // food: { 'YYYY-MM-DD': { comida, cena, batido, creatina } } (platos en texto libre; batido/creatina = tomado)
 // km = kilómetros; pace = ritmo en segundos por km (Correr); speed = velocidad media en km/h (Ciclismo)
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
@@ -480,6 +512,8 @@ function load() {
   if (!d || !d.sports || !d.days) d = { sports: DEFAULT_SPORTS, days: {} };
   d.checks = d.checks || {};
   d.food = d.food || {};
+  d.habits = d.habits || DEFAULT_HABITS.map(h => ({ ...h }));
+  d.weight = d.weight || {};
   d.sports.forEach(s => { if (s.c === undefined) s.c = freeSlot(d.sports); });
   return d;
 }
@@ -560,7 +594,7 @@ function level(k) {
   return m >= 90 ? 4 : m >= 60 ? 3 : m >= 30 ? 2 : 1;
 }
 
-// Ejercicios diarios (cuello, mandíbula): casillas por día
+// Hábitos diarios (por defecto cuello y mandíbula; se configuran en Ajustes): casillas por día
 const checked = (k, id) => (data.checks[k] || []).includes(id);
 function toggleCheck(k, id) {
   const a = data.checks[k] || (data.checks[k] = []);
@@ -572,19 +606,62 @@ function toggleCheck(k, id) {
 }
 const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 // mini = muestra los últimos 7 días a la derecha
-const habitRows = (k, mini, list = HABITS) => list.map(h => {
+const habitRows = (k, mini, list = data.habits) => list.map(h => {
   const last7 = mini ? `<span class="mini">${[6, 5, 4, 3, 2, 1, 0].map(i =>
     `<i${checked(keyOf(addDays(parseKey(k), -i)), h.id) ? ' class="on"' : ''}></i>`).join('')}</span>` : '';
-  return `<button class="habit${checked(k, h.id) ? ' done' : ''}" data-habit="${h.id}"><span class="check">${CHECK_SVG}</span><span class="grow">${h.name}</span>${last7}</button>`;
+  return `<button class="habit${checked(k, h.id) ? ' done' : ''}" data-habit="${h.id}"><span class="check">${CHECK_SVG}</span><span class="grow">${esc(h.name)}</span>${last7}</button>`;
 }).join('');
 // En el panel solo salen los ejercicios pendientes de hoy; al marcarlos se quitan hasta mañana
 // (para desmarcar, desde la hoja de registrar del día)
 function renderHabits(t) {
-  const k = keyOf(t), pending = HABITS.filter(h => !checked(k, h.id));
+  const k = keyOf(t), pending = data.habits.filter(h => !checked(k, h.id));
   $('habitsCard').classList.toggle('hidden', !pending.length);
   $('habits').innerHTML = habitRows(k, true, pending);
-  $('habitsMeta').textContent = `${HABITS.length - pending.length}/${HABITS.length}`;
+  $('habitsMeta').textContent = `${data.habits.length - pending.length}/${data.habits.length}`;
 }
+
+// ---------- PESO ----------
+const fmtKg = n => n.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+function parseKg(str) { const v = parseKm(str); return v === null || Number.isNaN(v) ? v : v >= 25 && v <= 300 ? Math.round(v * 10) / 10 : NaN; }
+// Guarda (o borra, si está vacío) el peso de un día; devuelve false si no es válido
+function setWeight(k, str) {
+  const v = parseKg(str);
+  if (Number.isNaN(v)) { alert('Peso no válido. Escribe por ejemplo 72,4'); return false; }
+  if (v) data.weight[k] = v; else delete data.weight[k];
+  save(); return true;
+}
+function renderWeight(t) {
+  const keys = Object.keys(data.weight).sort(), last = keys.length ? data.weight[keys[keys.length - 1]] : null;
+  $('wNow').innerHTML = last ? `${fmtKg(last)}<small>kg</small>` : '—';
+  const tk = keyOf(t);
+  if (document.activeElement !== $('wToday')) $('wToday').value = data.weight[tk] ? fmtKg(data.weight[tk]) : '';
+  // cambio frente al último peso de hace 30 días o más
+  const ref = keys.filter(k => k <= keyOf(addDays(t, -30))).pop();
+  if (last && ref) {
+    const d = Math.round((last - data.weight[ref]) * 10) / 10;
+    $('wMeta').textContent = d ? `${d > 0 ? '▲' : '▼'} ${fmtKg(Math.abs(d))} kg en 30 días` : 'Igual que hace 30 días';
+  } else $('wMeta').textContent = last ? 'Últimos 6 meses' : 'Apunta tu peso';
+  // gráfica de los últimos 6 meses
+  const from = keyOf(addDays(t, -182)), pts = keys.filter(k => k >= from).map(k => ({ k, d: parseKey(k), v: data.weight[k] }));
+  if (pts.length < 2) { $('wChart').innerHTML = ''; return; }
+  const W = $('wChart').clientWidth || 340, H = 120, L = 34, R = 8, T = 10, B = 20;
+  const x0 = pts[0].d.getTime(), x1 = Math.max(t.getTime(), x0 + 864e5);
+  const lo = Math.floor(Math.min(...pts.map(p => p.v)) - .5), hi = Math.ceil(Math.max(...pts.map(p => p.v)) + .5);
+  const X = d => L + (d.getTime() - x0) / (x1 - x0) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.d).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
+  const grid = [hi, (hi + lo) / 2, lo].map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>` +
+    `<text x="${L - 6}" y="${Y(v) + 3}" text-anchor="end">${fmtKm(v)}</text>`).join('');
+  const dots = pts.map((p, i) => {
+    const tip = `${fmt(p.d, { day: 'numeric', month: 'short' })} · ${fmtKg(p.v)} kg`, last = i === pts.length - 1;
+    return `<g data-tip="${esc(tip)}"><circle cx="${X(p.d)}" cy="${Y(p.v)}" r="12" fill="transparent"/>` +
+      `<circle cx="${X(p.d)}" cy="${Y(p.v)}" r="${last ? 4 : 2.5}" fill="var(--accent)"${last ? ' stroke="var(--card)" stroke-width="2"' : ''}/></g>`;
+  }).join('');
+  $('wChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">${grid}
+    <path d="${line}L${X(pts[pts.length - 1].d)},${H - B}L${X(pts[0].d)},${H - B}Z" fill="var(--accent)" opacity=".12"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}
+    <text x="${L}" y="${H - 4}">${fmt(pts[0].d, { day: 'numeric', month: 'short' })}</text><text x="${W - R}" y="${H - 4}" text-anchor="end">Hoy</text></svg>`;
+}
+$('wToday').onchange = e => { if (setWeight(keyOf(today()), e.target.value)) e.target.blur(); renderWeight(today()); };
 
 // ---------- PANEL ----------
 function renderPanel() {
@@ -606,6 +683,7 @@ function renderPanel() {
   renderHeat(t);
   renderRun(t);
   renderBySport(t);
+  renderWeight(t);
   renderFacts();
   renderBackup(t);
 }
@@ -883,7 +961,7 @@ function renderCal() {
         entriesOf(k).map(e => sessRow(sportById(e.sport), e)).join('')).join('')
     : '<div class="empty">Sin sesiones este mes.</div>';
 }
-const sessRow = (s, e, del) => `<div class="sess" style="--c:${color(s)}"><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
+const sessRow = (s, e, del, editing) => `<div class="sess${editing ? ' editing' : ''}" style="--c:${color(s)}"${del !== undefined ? ` data-edit="${del}"` : ''}><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
   `<span class="min">${[e.km && fmtKm(e.km) + ' km', e.pace && fmtPace(e.pace) + '/km', e.speed && fmtKm(e.speed) + ' km/h', e.min && e.min + ' min'].filter(Boolean).join(' · ')}</span>${del !== undefined ? `<button class="del" data-del="${del}" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}</div>`;
 
 // ---------- NAVEGACIÓN ----------
@@ -893,17 +971,18 @@ function render() {
   if (curView === 'panel') renderPanel(); else if (curView === 'cal') renderCal(); else renderFood();
   $('todayLbl').textContent = fmt(today(), { weekday: 'long', day: 'numeric', month: 'long' });
 }
-document.querySelectorAll('.tab[data-view]').forEach(b => b.onclick = () => {
-  curView = b.dataset.view;
-  document.querySelectorAll('.tab[data-view]').forEach(x => x.classList.toggle('active', x === b));
-  $('viewPanel').classList.toggle('hidden', curView !== 'panel');
-  $('viewCal').classList.toggle('hidden', curView !== 'cal');
-  $('viewFood').classList.toggle('hidden', curView !== 'food');
-  $('title').textContent = TITLES[curView];
-  if (curView === 'food') foodDay = keyOf(today());
+function showView(v, day) {
+  curView = v;
+  document.querySelectorAll('.tab[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === v));
+  $('viewPanel').classList.toggle('hidden', v !== 'panel');
+  $('viewCal').classList.toggle('hidden', v !== 'cal');
+  $('viewFood').classList.toggle('hidden', v !== 'food');
+  $('title').textContent = TITLES[v];
+  if (v === 'food') foodDay = day || keyOf(today());
   window.scrollTo(0, 0);
   render();
-});
+}
+document.querySelectorAll('.tab[data-view]').forEach(b => b.onclick = () => showView(b.dataset.view));
 $('prev').onclick = () => { view.setMonth(view.getMonth() - 1); renderCal(); };
 $('next').onclick = () => { view.setMonth(view.getMonth() + 1); renderCal(); };
 document.addEventListener('click', e => {
@@ -1048,17 +1127,41 @@ function swipeToClose(sheet) {
 document.querySelectorAll('.sheet').forEach(swipeToClose);
 
 // Registrar
-let logDay = null, pickSport = null, pickDur = null;
+let logDay = null, pickSport = null, pickDur = null, editIdx = null, editOrig = null; // editIdx: sesión que se está editando
 function clearRunFields() { $('runKm').value = ''; $('runPaceIn').value = ''; }
-function openLog(k) { logDay = k; pickSport = null; pickDur = null; clearRunFields(); renderLog(); openSheet('logSheet'); }
+function resetForm() { pickSport = null; pickDur = null; editIdx = null; editOrig = null; clearRunFields(); }
+function openLog(k) { logDay = k; resetForm(); renderLog(); openSheet('logSheet'); }
+// Carga una sesión ya guardada en el formulario para corregirla
+function editEntry(i) {
+  const e = entriesOf(logDay)[i];
+  resetForm(); editIdx = i; pickSport = e.sport; pickDur = e.min || null;
+  renderLog();
+  if (e.km) $('runKm').value = fmtKm(e.km);
+  if (e.pace) $('runPaceIn').value = fmtPace(e.pace);
+  if (e.speed) $('runPaceIn').value = fmtKm(e.speed);
+  editOrig = { km: $('runKm').value, sec: $('runPaceIn').value, min: pickDur };
+  $('logSports').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function renderDayExtras() {
+  if (document.activeElement !== $('logWeight')) $('logWeight').value = data.weight[logDay] ? fmtKg(data.weight[logDay]) : '';
+  const f = foodOf(logDay);
+  const meals = [f.comida && `<b>Comida:</b> ${esc(f.comida)}`, f.cena && `<b>Cena:</b> ${esc(f.cena)}`].filter(Boolean);
+  const supps = SUPPS.filter(x => f[x.id]).map(x => x.name);
+  $('logFood').innerHTML = `<div class="day-food">${meals.length ? meals.join('<br>') : 'Sin apuntar'}` +
+    `${supps.length ? `<br><b>Tomado:</b> ${supps.join(', ')}` : ''}</div>` +
+    `<button class="pill" id="logFoodEdit" style="margin-top:10px">${meals.length || supps.length ? 'Editar' : 'Apuntar'} en Comida</button>`;
+}
 function renderLog() {
   const d = parseKey(logDay), t = today();
   $('logTitle').textContent = d.getTime() === t.getTime() ? 'Hoy' :
     d.getTime() === addDays(t, -1).getTime() ? 'Ayer' : fmt(d, { weekday: 'long', day: 'numeric', month: 'short' });
   $('dayNext').disabled = d >= t;
   const es = entriesOf(logDay);
-  $('logEntries').innerHTML = es.length ? '<div class="section-lbl">Registrado</div>' + es.map((e, i) => sessRow(sportById(e.sport), e, i)).join('') : '';
+  $('logEntries').innerHTML = es.length ? '<div class="section-lbl">Registrado</div><div class="hint" style="margin:-4px 0 4px">Toca una sesión para editarla.</div>' +
+    es.map((e, i) => sessRow(sportById(e.sport), e, i, i === editIdx)).join('') : '';
+  $('logHabitsBox').classList.toggle('hidden', !data.habits.length);
   $('logHabits').innerHTML = habitRows(logDay, false);
+  renderDayExtras();
   $('logSports').innerHTML = data.sports.map(s =>
     `<button class="pill${pickSport === s.id ? ' on' : ''}" data-sport="${s.id}" style="--c:${color(s)}"><span class="pip"></span>${esc(s.name)}</button>`).join('');
   const custom = pickDur && !DUR.includes(pickDur) ? pickDur : '';
@@ -1074,6 +1177,8 @@ function renderLog() {
     $('secUnit').textContent = K.unit; $('distHint').textContent = K.hint;
   }
   $('logSave').disabled = !pickSport;
+  $('logSave').textContent = editIdx === null ? 'Guardar sesión' : 'Guardar cambios';
+  $('logCancel').classList.toggle('hidden', editIdx === null);
 }
 $('logSports').onclick = e => { const b = e.target.closest('[data-sport]'); if (b) { pickSport = pickSport === b.dataset.sport ? null : b.dataset.sport; renderLog(); } };
 $('logDur').onclick = e => { const b = e.target.closest('[data-dur]'); if (b) { const v = +b.dataset.dur; pickDur = pickDur === v ? null : v; renderLog(); } };
@@ -1095,14 +1200,27 @@ $('logHabits').onclick = e => {
   toggleCheck(logDay, b.dataset.habit); renderLog();
 };
 $('logEntries').onclick = e => {
-  const b = e.target.closest('[data-del]'); if (!b) return;
-  const es = entriesOf(logDay); es.splice(+b.dataset.del, 1);
-  if (!es.length) delete data.days[logDay];
-  save(); renderLog();
+  const b = e.target.closest('[data-del]');
+  if (b) {
+    const es = entriesOf(logDay); es.splice(+b.dataset.del, 1);
+    if (!es.length) delete data.days[logDay];
+    resetForm(); save(); renderLog(); return;
+  }
+  const row = e.target.closest('[data-edit]'); if (!row) return;
+  if (+row.dataset.edit === editIdx) { resetForm(); renderLog(); } else editEntry(+row.dataset.edit);
+};
+$('logCancel').onclick = () => { resetForm(); renderLog(); };
+$('logWeight').onchange = e => { if (setWeight(logDay, e.target.value)) e.target.blur(); renderDayExtras(); };
+$('logFood').onclick = e => {
+  if (!e.target.closest('#logFoodEdit')) return;
+  const k = logDay; closeSheets(); showView('food', k);
 };
 $('logSave').onclick = () => {
   const entry = { sport: pickSport, min: pickDur || null };
   const kind = kindOf(sportById(pickSport));
+  // al editar, si cambias km o duración sin tocar el ritmo/velocidad, se recalcula
+  if (kind && editOrig && $('runPaceIn').value === editOrig.sec && ($('runKm').value !== editOrig.km || entry.min !== editOrig.min))
+    $('runPaceIn').value = '';
   if (kind) {
     const km = parseKm($('runKm').value);
     if (Number.isNaN(km)) return alert('Km no válidos. Escribe por ejemplo 8,5');
@@ -1121,13 +1239,14 @@ $('logSave').onclick = () => {
     }
     if (km) entry.km = km;
   }
-  (data.days[logDay] || (data.days[logDay] = [])).push(entry);
+  if (editIdx !== null) data.days[logDay][editIdx] = entry;
+  else (data.days[logDay] || (data.days[logDay] = [])).push(entry);
   save();
   if (navigator.vibrate) navigator.vibrate(10);
-  pickSport = null; pickDur = null; clearRunFields(); renderLog();
+  resetForm(); renderLog();
 };
-$('dayPrev').onclick = () => { logDay = keyOf(addDays(parseKey(logDay), -1)); renderLog(); };
-$('dayNext').onclick = () => { logDay = keyOf(addDays(parseKey(logDay), 1)); renderLog(); };
+$('dayPrev').onclick = () => { logDay = keyOf(addDays(parseKey(logDay), -1)); resetForm(); renderLog(); };
+$('dayNext').onclick = () => { logDay = keyOf(addDays(parseKey(logDay), 1)); resetForm(); renderLog(); };
 $('logClose').onclick = closeSheets;
 $('addBtn').onclick = () => openLog(keyOf(today()));
 
@@ -1136,6 +1255,10 @@ function renderSettings() {
   $('lastBackup').textContent = ageText(daysSince(data.lastBackup)) + '.';
   $('reminderSwitch').classList.toggle('on', !!data.backupReminder);
   $('reminderSwitch').setAttribute('aria-checked', !!data.backupReminder);
+  $('habitList').innerHTML = data.habits.map(h =>
+    `<div class="sess" style="--c:var(--accent)"><span class="bar-c"></span><span class="grow">${esc(h.name)}</span>` +
+    `<button class="del" data-rmh="${h.id}" aria-label="Borrar ${esc(h.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('') ||
+    '<div class="empty">Sin hábitos.</div>';
   $('sportList').innerHTML = data.sports.map(s =>
     `<div class="sess" style="--c:${color(s)}"><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
     `<button class="del" data-rm="${s.id}" aria-label="Borrar ${esc(s.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('');
@@ -1162,12 +1285,34 @@ $('addSport').onclick = () => {
   save(); renderSettings();
 };
 $('newName').onkeydown = e => { if (e.key === 'Enter') $('addSport').click(); };
+$('habitList').onclick = e => {
+  const b = e.target.closest('[data-rmh]'); if (!b) return;
+  const h = data.habits.find(x => x.id === b.dataset.rmh);
+  const used = Object.values(data.checks).some(a => a.includes(h.id));
+  if (used && !confirm(`"${h.name}" tiene días marcados. Si lo borras, se borrará también ese historial. ¿Continuar?`)) return;
+  data.habits = data.habits.filter(x => x.id !== h.id);
+  for (const k of Object.keys(data.checks)) {
+    data.checks[k] = data.checks[k].filter(id => id !== h.id);
+    if (!data.checks[k].length) delete data.checks[k];
+  }
+  save(); renderSettings();
+};
+$('addHabit').onclick = () => {
+  const name = $('newHabit').value.trim();
+  if (!name) return;
+  data.habits.push({ id: 'h' + Date.now(), name });
+  $('newHabit').value = '';
+  save(); renderSettings();
+};
+$('newHabit').onkeydown = e => { if (e.key === 'Enter') $('addHabit').click(); };
 async function exportData() {
   // la leyenda explica cada campo para quien analice el archivo (por ejemplo, Claude)
   const out = { leyenda: {
     sports: 'Deportes: id, nombre y color (c).',
     days: 'Sesiones por fecha (YYYY-MM-DD): sport = id del deporte, min = minutos (null si no se apuntó), km = kilómetros, pace = ritmo en segundos por km (correr), speed = velocidad media en km/h (bici).',
-    checks: 'Ejercicios diarios hechos por fecha: cuello, mandibula.',
+    habits: 'Hábitos diarios configurados (casillas): id y nombre.',
+    checks: 'Hábitos marcados por fecha: lista de ids de habits (p. ej. cuello, mandibula).',
+    weight: 'Peso corporal en kg por fecha.',
     food: 'Comida por fecha: comida y cena = platos en texto libre (separados por comas); batido = batido de proteína tomado; creatina = creatina tomada. El desayuno no se apunta.',
   }, ...data };
   const file = new File([JSON.stringify(out, null, 2)], `mi-deporte-${keyOf(today())}.json`, { type: 'application/json' });
@@ -1215,7 +1360,7 @@ function hideTip() { tip.classList.remove('show'); }
 document.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el && e.pointerType === 'mouse') showTip(el); });
 document.addEventListener('pointerout', e => { if (e.pointerType === 'mouse' && e.target.closest('[data-tip]')) hideTip(); });
 // En el móvil: tocar una barra o una celda del mapa muestra su detalle
-['runBars', 'moBars'].forEach(id => $(id).addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); }));
+['runBars', 'moBars', 'wChart'].forEach(id => $(id).addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); }));
 document.getElementById('heat').addEventListener('click', e => {
   const el = e.target.closest('[data-tip]'); if (!el) return;
   e.stopPropagation(); showTip(el);
