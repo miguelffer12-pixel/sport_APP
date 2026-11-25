@@ -184,6 +184,7 @@
     .sess:last-child { border-bottom: 0; }
     .sess .bar-c { width: 4px; align-self: stretch; border-radius: 4px; background: var(--c, var(--c0)); }
     .sess .grow { flex: 1; font-size: 15px; }
+    .sess .grow small { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
     .sess .min { font-size: 14px; color: var(--text2); }
     .sess .del { color: var(--muted); width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; }
     .sess .del svg { width: 16px; height: 16px; }
@@ -242,6 +243,24 @@
     .sess.editing .grow::after { content: ' · editando'; font-size: 12px; font-weight: 500; color: var(--muted); }
     .day-food { font-size: 14px; color: var(--text2); line-height: 1.5; }
     .day-food b { color: var(--text); font-weight: 600; }
+
+    /* Gimnasio */
+    .routines { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .routine { text-align: left; padding: 10px 12px; border-radius: 14px; background: var(--raise); border: 1.5px solid transparent; font-size: 14px; line-height: 1.3; font-weight: 600; }
+    .routine small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 2px; }
+    .routine.on { border-color: var(--text); background: var(--card); }
+    .gx { padding: 14px 0 12px; }
+    .gx + .gx { border-top: 1px solid var(--line); }
+    .gx-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .gx-head b { font-size: 15px; font-weight: 600; }
+    .gx-head span { font-size: 13px; color: var(--text2); white-space: nowrap; font-weight: 600; }
+    .gx-last { font-size: 12px; color: var(--muted); margin: 3px 0 6px; }
+    .gx-set { display: grid; grid-template-columns: 22px 1fr 1fr; gap: 8px; align-items: center; margin-top: 6px; }
+    .gx-set .gx-n { font-size: 13px; color: var(--muted); font-weight: 600; text-align: center; }
+    .gx-set input { padding: 8px 46px 8px 12px; }
+    .gx-btns { display: flex; gap: 8px; margin-top: 8px; }
+    .gx-btns button { font-size: 13px; padding: 6px 12px; border-radius: 99px; background: var(--raise); color: var(--text2); font-weight: 600; }
+    .gx-btns button:disabled { opacity: .35; }
 
     /* Comida */
     .food-day { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
@@ -455,6 +474,11 @@
       </div>
       <div class="hint" style="margin-top:8px" id="distHint"></div>
     </div>
+    <div id="gymFields" class="hidden">
+      <div class="section-lbl">Rutina</div>
+      <div class="routines" id="gymRoutines"></div>
+      <div id="gymEx"></div>
+    </div>
     <button class="btn primary" id="logSave" disabled>Guardar sesión</button>
     <button class="btn ghost hidden" id="logCancel">Cancelar edición</button>
     <button class="btn ghost" id="logClose">Hecho</button>
@@ -502,12 +526,46 @@ const KEY = 'mi-deporte-v1';
 const DEFAULT_SPORTS = ['Correr', 'Gimnasio', 'Ciclismo', 'Natación', 'Fútbol', 'Pádel']
   .map((name, i) => ({ id: 'd' + i, name, c: i + 1 }));
 const DUR = [15, 30, 45, 60, 90];
+// Rutinas de gimnasio: ejercicio = [id, nombre, series, repeticiones, peso de partida].
+// El id es el mismo en el día pesado y en el ligero para poder comparar la evolución de cada ejercicio.
+const ex = (id, name, sets, reps, start) => ({ id, name, sets, reps, start });
+const DEFAULT_ROUTINES = [
+  { id: 'pht-p', name: 'Pecho, hombro y tríceps', variant: 'Pesado', dow: 0, exercises: [
+    ex('press_banca', 'Press banca', 4, '6–8', '35 kg'),
+    ex('press_inclinado', 'Press inclinado', 3, '8–10', '30 kg'),
+    ex('aperturas_pecho', 'Aperturas de pecho en máquina', 2, '12–15', '15 kg'),
+    ex('press_hombro', 'Press de hombro con mancuernas (banco 80º)', 3, '8–10', '10 kg'),
+    ex('laterales', 'Aperturas laterales de hombro', 3, '12–15', '5–7,5 kg'),
+    ex('triceps_polea', 'Tríceps en polea desde arriba', 3, '10–12', 'el que usas')] },
+  { id: 'eb-p', name: 'Espalda y bíceps', variant: 'Pesado', dow: 1, exercises: [
+    ex('jalon', 'Jalón al pecho (agarre abierto)', 4, '8–10', '50 kg'),
+    ex('remo', 'Remo', 3, '8–10', '50 kg'),
+    ex('remo_barra', 'Remo con barra', 3, '8–10', '12,5 kg'),
+    ex('aperturas_inversas', 'Aperturas inversas', 3, '12–15', 'ligero'),
+    ex('biceps_predicador', 'Bíceps en predicador', 3, '10–12', '5 kg'),
+    ex('biceps_mancuerna', 'Bíceps con mancuerna', 2, '12', '7,5 kg')] },
+  { id: 'pht-l', name: 'Pecho, hombro y tríceps', variant: 'Ligero', dow: 3, exercises: [
+    ex('press_inclinado', 'Press inclinado', 3, '10–12', '30 kg'),
+    ex('press_banca', 'Press banca', 3, '10–12', '30 kg'),
+    ex('aperturas_pecho', 'Aperturas de pecho en máquina', 2, '15', '15 kg'),
+    ex('press_hombro', 'Press de hombro con mancuernas', 3, '10–12', '7,5–10 kg'),
+    ex('laterales', 'Aperturas laterales de hombro', 3, '15', '5 kg'),
+    ex('triceps_polea', 'Tríceps en polea desde arriba', 3, '12', 'el que usas')] },
+  { id: 'eb-l', name: 'Espalda y bíceps', variant: 'Ligero', dow: 4, exercises: [
+    ex('jalon', 'Jalón al pecho (agarre abierto)', 3, '10–12', '45–50 kg'),
+    ex('remo', 'Remo', 3, '10–12', '45 kg'),
+    ex('remo_barra', 'Remo con barra', 3, '10–12', '12,5 kg'),
+    ex('aperturas_inversas', 'Aperturas inversas', 3, '15', 'ligero'),
+    ex('biceps_mancuerna', 'Bíceps con mancuerna', 3, '10–12', '7,5 kg'),
+    ex('biceps_predicador', 'Bíceps en predicador', 2, '12', '5 kg')] },
+];
 const DEFAULT_HABITS = [{ id: 'cuello', name: 'Cuello' }, { id: 'mandibula', name: 'Mandíbula' }];
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 // Datos: { sports: [{id, name, c}], days: { 'YYYY-MM-DD': [{ sport, min, km?, pace?, speed? }] }, checks: { 'YYYY-MM-DD': ['cuello', ...] }, lastBackup, backupReminder }
 // habits: [{ id, name }] casillas diarias; checks: { 'YYYY-MM-DD': [ids marcados] }; weight: { 'YYYY-MM-DD': kg }
 // food: { 'YYYY-MM-DD': { comida, cena, batido, creatina } } (platos en texto libre; batido/creatina = tomado)
+// routines: rutinas de gimnasio; en la sesión de gimnasio: routine, routineName, ex: [{ id, name, sets: [{ kg, reps }] }]
 // km = kilómetros; pace = ritmo en segundos por km (Correr); speed = velocidad media en km/h (Ciclismo)
 // c = hueco de color 1..8 (0 = gris cuando ya no quedan colores)
 function load() {
@@ -518,6 +576,7 @@ function load() {
   d.food = d.food || {};
   d.habits = d.habits || DEFAULT_HABITS.map(h => ({ ...h }));
   d.weight = d.weight || {};
+  d.routines = d.routines || JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
   d.sports.forEach(s => { if (s.c === undefined) s.c = freeSlot(d.sports); });
   return d;
 }
@@ -965,7 +1024,7 @@ function renderCal() {
         entriesOf(k).map(e => sessRow(sportById(e.sport), e)).join('')).join('')
     : '<div class="empty">Sin sesiones este mes.</div>';
 }
-const sessRow = (s, e, del, editing) => `<div class="sess${editing ? ' editing' : ''}" style="--c:${color(s)}"${del !== undefined ? ` data-edit="${del}"` : ''}><span class="bar-c"></span><span class="grow">${esc(s.name)}</span>` +
+const sessRow = (s, e, del, editing) => `<div class="sess${editing ? ' editing' : ''}" style="--c:${color(s)}"${del !== undefined ? ` data-edit="${del}"` : ''}><span class="bar-c"></span><span class="grow">${esc(s.name)}${e.routineName ? `<small>${esc(e.routineName)}</small>` : ''}</span>` +
   `<span class="min">${[e.km && fmtKm(e.km) + ' km', e.pace && fmtPace(e.pace) + '/km', e.speed && fmtKm(e.speed) + ' km/h', e.min && e.min + ' min'].filter(Boolean).join(' · ')}</span>${del !== undefined ? `<button class="del" data-del="${del}" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}</div>`;
 
 // ---------- NAVEGACIÓN ----------
@@ -1130,15 +1189,108 @@ function swipeToClose(sheet) {
 }
 document.querySelectorAll('.sheet').forEach(swipeToClose);
 
+// ---------- GIMNASIO ----------
+// Al registrar Gimnasio se elige la rutina y se apuntan kg y repeticiones de cada serie.
+// Se guarda en la sesión: routine, routineName y ex = [{ id, name, sets: [{ kg, reps }] }]
+const isGym = s => !!s && ['gimnasio', 'gym'].includes(s.name.trim().toLowerCase());
+const routineById = id => data.routines.find(r => r.id === id);
+const routineLabel = r => `${r.name} · ${r.variant.toLowerCase()}`;
+// gymRoutine: null = aún sin elegir. gymSets[i] = series del ejercicio i: [{ kg, reps, pkg, preps }] como texto;
+// kg/reps es lo que escribes y pkg/preps lo que se sugiere en gris (la última vez o el peso de partida)
+let gymRoutine = null, gymSets = [];
+// Última vez que hiciste este ejercicio en esta rutina, antes del día que estás apuntando
+function lastSets(routineId, exId) {
+  const keys = Object.keys(data.days).filter(k => k < logDay).sort().reverse();
+  for (const k of keys) for (const e of data.days[k]) {
+    if (e.routine !== routineId || !e.ex) continue;
+    const x = e.ex.find(x => x.id === exId);
+    if (x && x.sets.length) return { k, sets: x.sets };
+  }
+  return null;
+}
+const startKg = txt => { const m = /\d+(?:[.,]\d+)?/.exec(txt || ''); return m ? m[0] : ''; };
+const fmtSet = x => `${x.kg != null ? fmtKm(x.kg) : '—'} × ${x.reps != null ? x.reps : '—'}`;
+// Sugerencias de cada serie: lo que hiciste la última vez con esta rutina, o el peso de partida
+function suggested(r, x) {
+  const last = lastSets(r.id, x.id);
+  return last ? last.sets.map(y => ({ pkg: y.kg != null ? fmtKm(y.kg) : '', preps: y.reps != null ? String(y.reps) : '' }))
+    : Array.from({ length: x.sets }, () => ({ pkg: startKg(x.start), preps: '' }));
+}
+// values: series ya guardadas (al editar); si no, todo vacío con las sugerencias en gris
+function pickRoutine(id, values) {
+  gymRoutine = id;
+  const r = routineById(id);
+  gymSets = r ? r.exercises.map((x, i) => {
+    const ph = suggested(r, x), v = values ? values[i] : null;
+    const n = v ? v.length : ph.length;
+    return Array.from({ length: n }, (_, j) => ({ kg: v ? v[j].kg : '', reps: v ? v[j].reps : '', ...(ph[j] || ph[ph.length - 1] || { pkg: '', preps: '' }) }));
+  }) : [];
+}
+function renderGym() {
+  $('gymRoutines').innerHTML = data.routines.map(r =>
+    `<button class="routine${r.id === gymRoutine ? ' on' : ''}" data-routine="${r.id}">${esc(r.name)}<small>${esc(r.variant)} · ${DOW_NAMES[r.dow]}</small></button>`).join('');
+  const r = routineById(gymRoutine);
+  $('gymEx').innerHTML = !r ? '' : r.exercises.map((x, i) => {
+    const last = lastSets(r.id, x.id);
+    const info = last ? `Última vez (${fmt(parseKey(last.k), { day: 'numeric', month: 'short' })}): ${last.sets.map(fmtSet).join(' · ')}`
+      : `Peso de partida: ${x.start}`;
+    const sets = gymSets[i].map((y, j) => `<div class="gx-set"><span class="gx-n">${j + 1}</span>
+      <label class="field"><input data-ex="${i}" data-set="${j}" data-f="kg" inputmode="decimal" placeholder="${esc(y.pkg || '—')}" value="${esc(y.kg)}" autocomplete="off"><span>kg</span></label>
+      <label class="field"><input data-ex="${i}" data-set="${j}" data-f="reps" inputmode="numeric" placeholder="${esc(y.preps || x.reps)}" value="${esc(y.reps)}" autocomplete="off"><span>reps</span></label></div>`).join('');
+    return `<div class="gx"><div class="gx-head"><b>${esc(x.name)}</b><span>${x.sets} × ${esc(x.reps)}</span></div>
+      <div class="gx-last">${esc(info)}</div>${sets}
+      <div class="gx-btns">${last ? `<button data-repeat="${i}">Repetir última</button>` : ''}<button data-addset="${i}">+ Serie</button><button data-rmset="${i}"${gymSets[i].length ? '' : ' disabled'}>− Serie</button></div></div>`;
+  }).join('');
+}
+const DOW_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+$('gymRoutines').onclick = e => {
+  const b = e.target.closest('[data-routine]'); if (!b) return;
+  pickRoutine(b.dataset.routine === gymRoutine ? '' : b.dataset.routine); renderGym(); // '' = sin rutina, a propósito
+};
+$('gymEx').oninput = e => {
+  const t = e.target; if (!t.dataset.f) return;
+  gymSets[+t.dataset.ex][+t.dataset.set][t.dataset.f] = t.value;
+};
+$('gymEx').onclick = e => {
+  const add = e.target.closest('[data-addset]'), rm = e.target.closest('[data-rmset]'), again = e.target.closest('[data-repeat]');
+  if (add) { const a = gymSets[+add.dataset.addset], l = a[a.length - 1] || {}; a.push({ kg: '', reps: '', pkg: l.kg || l.pkg || '', preps: l.reps || l.preps || '' }); renderGym(); }
+  if (rm) { gymSets[+rm.dataset.rmset].pop(); renderGym(); }
+  if (again) { gymSets[+again.dataset.repeat].forEach(y => { y.kg = y.pkg; y.reps = y.preps; }); renderGym(); }
+};
+// Convierte lo apuntado en ejercicios para guardar; devuelve un texto de error si algo no vale
+function gymToSave() {
+  const r = routineById(gymRoutine), out = [];
+  for (const [i, x] of r.exercises.entries()) {
+    const sets = [];
+    for (const y of gymSets[i]) {
+      if (!y.kg.trim() && !y.reps.trim()) continue; // serie sin tocar: no se guarda
+      // si solo escribes uno de los dos, el otro es el sugerido
+      const kgTxt = y.kg.trim() || y.pkg, repsTxt = y.reps.trim() || (/^\d+$/.test(y.preps) ? y.preps : '');
+      const kg = kgTxt ? Number(kgTxt.replace(',', '.')) : null;
+      const reps = repsTxt ? Number(repsTxt) : null;
+      if (kg !== null && !(kg >= 0 && kg < 500)) return `Peso no válido en ${x.name}`;
+      if (reps !== null && !(Number.isInteger(reps) && reps > 0 && reps < 200)) return `Repeticiones no válidas en ${x.name}`;
+      sets.push({ kg, reps });
+    }
+    if (sets.length) out.push({ id: x.id, name: x.name, sets });
+  }
+  return out;
+}
+
 // Registrar
 let logDay = null, pickSport = null, pickDur = null, editIdx = null, editOrig = null; // editIdx: sesión que se está editando
 function clearRunFields() { $('runKm').value = ''; $('runPaceIn').value = ''; }
-function resetForm() { pickSport = null; pickDur = null; editIdx = null; editOrig = null; clearRunFields(); }
+function resetForm() { pickSport = null; pickDur = null; editIdx = null; editOrig = null; gymRoutine = null; gymSets = []; clearRunFields(); }
 function openLog(k) { logDay = k; resetForm(); renderLog(); openSheet('logSheet'); }
 // Carga una sesión ya guardada en el formulario para corregirla
 function editEntry(i) {
   const e = entriesOf(logDay)[i];
   resetForm(); editIdx = i; pickSport = e.sport; pickDur = e.min || null;
+  if (e.routine && routineById(e.routine)) // las series guardadas, en el orden de la rutina
+    pickRoutine(e.routine, routineById(e.routine).exercises.map(x => {
+      const saved = (e.ex || []).find(y => y.id === x.id);
+      return saved ? saved.sets.map(y => ({ kg: y.kg != null ? fmtKm(y.kg) : '', reps: y.reps != null ? String(y.reps) : '' })) : [];
+    }));
   renderLog();
   if (e.km) $('runKm').value = fmtKm(e.km);
   if (e.pace) $('runPaceIn').value = fmtPace(e.pace);
@@ -1180,6 +1332,13 @@ function renderLog() {
     $('runPaceIn').value = ''; $('runPaceIn').placeholder = K.ph;
     $('secUnit').textContent = K.unit; $('distHint').textContent = K.hint;
   }
+  const gym = isGym(data.sports.find(s => s.id === pickSport));
+  $('gymFields').classList.toggle('hidden', !gym);
+  if (gym && gymRoutine === null && editIdx === null) { // propone la rutina que toca ese día de la semana
+    const r = data.routines.find(r => r.dow === dow(parseKey(logDay)));
+    if (r) pickRoutine(r.id);
+  }
+  if (gym) renderGym();
   $('logSave').disabled = !pickSport;
   $('logSave').textContent = editIdx === null ? 'Guardar sesión' : 'Guardar cambios';
   $('logCancel').classList.toggle('hidden', editIdx === null);
@@ -1242,6 +1401,11 @@ $('logSave').onclick = () => {
       if (speed) entry.speed = speed;
     }
     if (km) entry.km = km;
+  }
+  if (isGym(sportById(pickSport)) && routineById(gymRoutine)) {
+    const exs = gymToSave();
+    if (typeof exs === 'string') return alert(exs);
+    entry.routine = gymRoutine; entry.routineName = routineLabel(routineById(gymRoutine)); entry.ex = exs;
   }
   if (editIdx !== null) data.days[logDay][editIdx] = entry;
   else (data.days[logDay] || (data.days[logDay] = [])).push(entry);
@@ -1313,7 +1477,8 @@ async function exportData() {
   // la leyenda explica cada campo para quien analice el archivo (por ejemplo, Claude)
   const out = { leyenda: {
     sports: 'Deportes: id, nombre y color (c).',
-    days: 'Sesiones por fecha (YYYY-MM-DD): sport = id del deporte, min = minutos (null si no se apuntó), km = kilómetros, pace = ritmo en segundos por km (correr), speed = velocidad media en km/h (bici).',
+    days: 'Sesiones por fecha (YYYY-MM-DD): sport = id del deporte, min = minutos (null si no se apuntó), km = kilómetros, pace = ritmo en segundos por km (correr), speed = velocidad media en km/h (bici). En gimnasio: routine = id de la rutina, routineName = nombre, ex = ejercicios hechos con sus series [{ kg, reps }] (kg = peso por serie, reps = repeticiones).',
+    routines: 'Rutinas de gimnasio: ejercicios con id (el mismo en el día pesado y en el ligero), series y repeticiones objetivo, y peso de partida.',
     habits: 'Hábitos diarios configurados (casillas): id y nombre.',
     checks: 'Hábitos marcados por fecha: lista de ids de habits (p. ej. cuello, mandibula).',
     weight: 'Peso corporal en kg por fecha.',
